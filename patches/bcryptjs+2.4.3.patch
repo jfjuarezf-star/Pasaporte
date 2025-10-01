@@ -1,0 +1,31 @@
+diff --git a/node_modules/bcryptjs/index.js b/node_modules/bcryptjs/index.js
+index 92c8152..71d2424 100644
+--- a/node_modules/bcryptjs/index.js
++++ b/node_modules/bcryptjs/index.js
+@@ -1,6 +1,6 @@
+ "use strict";
+ 
+-var path = require("path"),
++var path,
+     fs = require("fs"),
+     os = require("os");
+ 
+diff --git a/node_modules/bcryptjs/bin/bcrypt b/node_modules/bcryptjs/bin/bcrypt
+index 3f958f9..f3f9e9a 100644
+--- a/node_modules/bcryptjs/bin/bcrypt
++++ b/node_modules/bcryptjs/bin/bcrypt
+@@ -1,5 +1,5 @@
+ #!/usr/bin/env node
+-"use strict";
++/* "use strict";
+ 
+ var bcrypt = require("../index.js"),
+     path = require("path"),
+@@ -235,4 +235,4 @@
+         process.exit(1);
+     }
+ }
+-main(process.argv.slice(2));
+\ No newline at end of file
++main(process.argv.slice(2)); */
+\ No newline at end of file
