@@ -1,24 +1,34 @@
-
 import admin from 'firebase-admin';
 import { getFirestore } from 'firebase-admin/firestore';
 import 'server-only';
-import serviceAccount from '../../firebase-credentials.json';
 
 let app: admin.app.App;
 
 if (!admin.apps.length) {
   try {
-    // We need to cast the service account because the type inference is not perfect.
+    // Usar variables de entorno en lugar del archivo JSON
+    const serviceAccount = {
+      type: "service_account",
+      project_id: process.env.FIREBASE_PROJECT_ID,
+      private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
+      private_key: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      client_email: process.env.FIREBASE_CLIENT_EMAIL,
+      client_id: process.env.FIREBASE_CLIENT_ID,
+      auth_uri: "https://accounts.google.com/o/oauth2/auth",
+      token_uri: "https://oauth2.googleapis.com/token",
+      auth_provider_x509_cert_url: "https://www.googleapis.com/oauth2/v1/certs",
+      client_x509_cert_url: `https://www.googleapis.com/robot/v1/metadata/x509/${process.env.FIREBASE_CLIENT_EMAIL}`,
+      universe_domain: "googleapis.com"
+    };
+
     const credential = admin.credential.cert(serviceAccount as admin.ServiceAccount);
     app = admin.initializeApp({ credential });
     console.log('Firebase Admin SDK initialized successfully.');
   } catch (error: any) {
     console.error('CRITICAL: Firebase Admin SDK initialization failed.', error);
-    // This is a fatal error, and the application cannot run without a database connection.
-    throw new Error('Could not initialize Firebase Admin SDK. Check your firebase-credentials.json. ' + error.message);
+    throw new Error('Could not initialize Firebase Admin SDK. Check your environment variables. ' + error.message);
   }
 } else {
-  // If the app is already initialized, use the existing instance.
   app = admin.apps[0]!;
 }
 
@@ -27,7 +37,6 @@ const auth = admin.auth(app);
 
 export const getFirebaseAdmin = () => {
   if (!db || !auth) {
-    // This should not happen if the initialization was successful, but it's a safeguard.
     throw new Error("Firebase Admin has not been initialized correctly.");
   }
   return { db, auth };
