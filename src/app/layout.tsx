@@ -3,11 +3,8 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'Onboarding Passport',
+  title: 'PasaporteCCU',
   description: 'Track your onboarding training progress.',
-  icons: {
-    icon: '/favicon.ico',
-  },
 };
 
 export default function RootLayout({
