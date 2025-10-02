@@ -18,11 +18,11 @@ import {
   Cell,
 } from 'recharts';
 import { Download, Users, Clock, AlertTriangle, CheckCircle, Calendar, CalendarX, BookOpen } from 'lucide-react';
-import { subMonths, isBefore, startOfDay, getMonth, getYear, setMonth, setYear } from 'date-fns';
+import { subMonths, isBefore, startOfDay, getMonth, getYear, setMonth, setYear, format } from 'date-fns';
+import { es } from 'date-fns/locale/es';
 import type { User, Training, Assignment, TrainingCategory } from '@/lib/types';
 import { CSVLink } from 'react-csv';
 import { Button } from '../ui/button';
-import { format, es } from 'date-fns';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 
 interface ReportDashboardProps {
