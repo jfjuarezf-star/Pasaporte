@@ -170,14 +170,14 @@ function AssignTrainingDialog({
     }
     setSelectedCategories(newSelectedCategories);
 
-    // Update selectedUserIds based on categories
     const userIdsInCategory = users
       .filter(user => Array.from(newSelectedCategories).some(cat => user.categories?.includes(cat)))
       .map(user => user.id);
     
-    // Merge with existing manual selections
-    const mergedIds = new Set([...selectedUserIds, ...userIdsInCategory]);
-    setSelectedUserIds(mergedIds);
+    // Merge with existing manual selections, don't overwrite them
+    const currentManualSelections = new Set(selectedUserIds);
+    userIdsInCategory.forEach(id => currentManualSelections.add(id));
+    setSelectedUserIds(currentManualSelections);
   }
   
   const totalSelectedCount = Array.from(selectedUserIds).filter(id => !training.assignments.some(a => a.userId === id)).length;
@@ -869,7 +869,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                   </div>
                   <div>
                       <h3 className="text-lg font-semibold mb-2">Colección: 'assignments'</h3>
-                      <ScrollArea className="h-72 w-full rounded-md border p-4 bg-muted/50">
+                      <ScrollArea className="h-72 w-full rounded-md border p-4 bg-muted/ ৫০">
                           <pre className="text-sm">
                               {JSON.stringify(allAssignments, null, 2)}
                           </pre>
