@@ -1,3 +1,4 @@
+
 'use server';
 import 'server-only';
 import { getFirebaseAdmin } from '@/lib/firebase';
@@ -193,6 +194,14 @@ export const createTraining = async (trainingData: Omit<Training, 'id'>): Promis
     return docRef.id;
 };
 
+export const updateTraining = async (trainingId: string, trainingData: Partial<Omit<Training, 'id'>>): Promise<void> => {
+    const { db } = getFirebaseAdmin();
+    if (!db) throw new Error("Database not initialized for updateTraining.");
+
+    const trainingRef = db.collection('trainings').doc(trainingId);
+    await trainingRef.update(trainingData);
+}
+
 export const deleteTraining = async (trainingId: string): Promise<void> => {
     const { db } = getFirebaseAdmin();
     if (!db) throw new Error("Database not initialized for deleteTraining.");
@@ -382,10 +391,4 @@ export const getAllAssignments = async (): Promise<Assignment[]> => {
         return [];
     }
 }
-    
-
-    
-
-    
-
     

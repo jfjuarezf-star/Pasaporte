@@ -17,12 +17,13 @@ import {
   Pie,
   Cell,
 } from 'recharts';
-import { Download, Users, Clock, AlertTriangle, CheckCircle, CalendarX } from 'lucide-react';
-import { subMonths, isBefore, startOfDay } from 'date-fns';
+import { Download, Users, Clock, AlertTriangle, CheckCircle, Calendar, CalendarX, BookOpen } from 'lucide-react';
+import { subMonths, isBefore, startOfDay, getMonth, getYear, setMonth, setYear } from 'date-fns';
 import type { User, Training, Assignment, TrainingCategory } from '@/lib/types';
 import { CSVLink } from 'react-csv';
 import { Button } from '../ui/button';
-import { format } from 'date-fns';
+import { format, es } from 'date-fns';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 
 interface ReportDashboardProps {
   users: User[];
@@ -45,8 +46,18 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   return null;
 };
 
+const MONTHS = Array.from({ length: 12 }, (_, i) => ({
+  value: i,
+  label: format(new Date(0, i), 'MMMM', { locale: es }),
+}));
+
+const YEARS = Array.from({ length: 10 }, (_, i) => getYear(new Date()) - 5 + i).reverse();
+
+
 export function ReportDashboard({ users, trainings, assignments }: ReportDashboardProps) {
   const [timeFilter, setTimeFilter] = useState('all');
+  const [reportMonth, setReportMonth] = useState(getMonth(new Date()));
+  const [reportYear, setReportYear] = useState(getYear(new Date()));
 
   const {
     filteredAssignments,
@@ -73,6 +84,14 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
       totalUsers: users.length,
     };
   }, [assignments, trainings, users, timeFilter]);
+  
+  const scheduledTrainingsThisMonth = useMemo(() => {
+    return trainings.filter(t => {
+      if (!t.scheduledDate) return false;
+      const scheduled = new Date(t.scheduledDate);
+      return getMonth(scheduled) === reportMonth && getYear(scheduled) === reportYear;
+    }).sort((a, b) => new Date(a.scheduledDate!).getTime() - new Date(b.scheduledDate!).getTime());
+  }, [trainings, reportMonth, reportYear]);
 
   const categoryData = useMemo(() => {
     const data: { [key in TrainingCategory]?: { count: number, duration: number } } = {};
@@ -236,6 +255,66 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
             <div className="text-2xl font-bold">{kpiData.overdueCount}</div>
             <p className="text-xs text-muted-foreground">Pendientes y fuera de fecha</p>
           </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-1">
+        <Card>
+            <CardHeader>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+                    <div>
+                        <CardTitle>Capacitaciones Programadas</CardTitle>
+                        <CardDescription>Eventos con fecha prevista para el período seleccionado.</CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2 mt-4 md:mt-0">
+                        <Select value={String(reportMonth)} onValueChange={(v) => setReportMonth(Number(v))}>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Mes" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.label}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                        <Select value={String(reportYear)} onValueChange={(v) => setReportYear(Number(v))}>
+                            <SelectTrigger className="w-[120px]">
+                                <SelectValue placeholder="Año" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {YEARS.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent>
+                {scheduledTrainingsThisMonth.length > 0 ? (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Fecha</TableHead>
+                                <TableHead>Capacitación</TableHead>
+                                <TableHead>Responsable</TableHead>
+                                <TableHead>Categoría</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {scheduledTrainingsThisMonth.map(training => (
+                                <TableRow key={training.id}>
+                                    <TableCell>{format(new Date(training.scheduledDate!), 'PPP', { locale: es })}</TableCell>
+                                    <TableCell>{training.title}</TableCell>
+                                    <TableCell>{training.trainerName}</TableCell>
+                                    <TableCell><div className='text-left'><span className='px-2 py-1 text-xs rounded-full border bg-muted'>{training.category}</span></div></TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                ) : (
+                    <div className="text-center py-8">
+                        <Calendar className="mx-auto h-12 w-12 text-muted-foreground" />
+                        <p className="mt-4 text-muted-foreground">No hay capacitaciones programadas para este mes.</p>
+                    </div>
+                )}
+            </CardContent>
         </Card>
       </div>
 

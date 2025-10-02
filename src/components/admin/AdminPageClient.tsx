@@ -39,7 +39,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import type { User, Training, Assignment, PopulatedAssignment, TrainingUrgency, TrainingCategory, UserCategory } from '@/lib/types';
 import { createUser, createTraining, promoteUser, assignTrainingToUsers, deleteTraining, deleteUser } from '@/app/admin-actions';
-import { FilePlus2, Loader2, UserPlus, Shield, Check, Users, Trash2, UserX, AlertCircle, Database, Calendar as CalendarIcon, Search } from 'lucide-react';
+import { FilePlus2, Loader2, UserPlus, Shield, Check, Users, Trash2, UserX, AlertCircle, Database, Calendar as CalendarIcon, Search, Pencil } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
@@ -69,8 +69,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Calendar } from '../ui/calendar';
+import { EditTrainingDialog } from './EditTrainingDialog';
 
 const USER_CATEGORIES: UserCategory[] = ['Supervisión', 'Ingresantes', 'Operaciones', 'Línea de Mando (FC)', 'Terceros', 'Mantenimiento', 'Brigadistas'];
+const TRAINING_CATEGORIES: TrainingCategory[] = ['Seguridad', 'Calidad', 'DPO', 'TPM', 'Medio Ambiente', 'Mejora Enfocada', 'Obligatoria'];
 
 function SubmitButton({ children, ...props }: { children: React.ReactNode } & React.ComponentProps<typeof Button>) {
   const { pending } = useFormStatus();
@@ -119,10 +121,13 @@ function AssignTrainingDialog({
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredUsers = useMemo(() => {
-    if (!searchTerm) return users;
-    return users.filter(user =>
-      user.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    let usersToFilter = users;
+    if (searchTerm) {
+        usersToFilter = usersToFilter.filter(user =>
+            user.name.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }
+    return usersToFilter;
   }, [users, searchTerm]);
 
   useEffect(() => {
@@ -154,9 +159,6 @@ function AssignTrainingDialog({
       newSelectedIds.delete(userId);
     }
     setSelectedUserIds(newSelectedIds);
-
-    // Deselect categories if a manual change happens
-    setSelectedCategories(new Set());
   };
 
   const handleCategoryCheckboxChange = (category: UserCategory, checked: boolean) => {
@@ -173,7 +175,9 @@ function AssignTrainingDialog({
       .filter(user => Array.from(newSelectedCategories).some(cat => user.categories?.includes(cat)))
       .map(user => user.id);
     
-    setSelectedUserIds(new Set(userIdsInCategory));
+    // Merge with existing manual selections
+    const mergedIds = new Set([...selectedUserIds, ...userIdsInCategory]);
+    setSelectedUserIds(mergedIds);
   }
   
   const totalSelectedCount = Array.from(selectedUserIds).filter(id => !training.assignments.some(a => a.userId === id)).length;
@@ -381,10 +385,31 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
   const [assignments, setAssignments] = useState(allAssignments);
 
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedTrainingToEdit, setSelectedTrainingToEdit] = useState<TrainingWithAssignments | null>(null);
 
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
 
+  // Filters for trainings list
+  const [titleSearch, setTitleSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [trainerFilter, setTrainerFilter] = useState('all');
+
   const leadershipUsers = initialUsers.filter(user => user.categories?.includes('Línea de Mando (FC)'));
+
+  const uniqueTrainers = useMemo(() => {
+    const trainers = new Set(initialTrainings.map(t => t.trainerName));
+    return Array.from(trainers);
+  }, [initialTrainings]);
+
+  const filteredTrainings = useMemo(() => {
+    return trainings.filter(training => {
+        const titleMatch = titleSearch ? training.title.toLowerCase().includes(titleSearch.toLowerCase()) : true;
+        const categoryMatch = categoryFilter !== 'all' ? training.category === categoryFilter : true;
+        const trainerMatch = trainerFilter !== 'all' ? training.trainerName === trainerFilter : true;
+        return titleMatch && categoryMatch && trainerMatch;
+    });
+  }, [trainings, titleSearch, categoryFilter, trainerFilter]);
+
 
   const handleAssignmentsChange = () => {
     // This function will be called when assignments are changed to trigger a re-render if needed.
@@ -589,11 +614,40 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                 <Card>
                     <CardHeader>
                         <CardTitle>Lista de Capacitaciones</CardTitle>
-                        <CardDescription>Esta tabla es una vista en vivo de tu colección 'trainings' en Firestore.</CardDescription>
+                        <CardDescription>Filtra y gestiona las capacitaciones de tu colección 'trainings'.</CardDescription>
+                         <div className="flex flex-col md:flex-row gap-2 pt-4">
+                            <div className="relative w-full">
+                                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input 
+                                    placeholder="Buscar por título..."
+                                    className="pl-8"
+                                    value={titleSearch}
+                                    onChange={(e) => setTitleSearch(e.target.value)}
+                                />
+                            </div>
+                            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                                <SelectTrigger className="w-full md:w-[180px]">
+                                    <SelectValue placeholder="Categoría" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Todas las Categorías</SelectItem>
+                                    {TRAINING_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                            <Select value={trainerFilter} onValueChange={setTrainerFilter}>
+                                <SelectTrigger className="w-full md:w-[180px]">
+                                    <SelectValue placeholder="Responsable" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Todos los Responsables</SelectItem>
+                                    {uniqueTrainers.map(trainer => <SelectItem key={trainer} value={trainer}>{trainer}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </CardHeader>
                     <CardContent>
                          <div className="md:hidden space-y-4">
-                            {(trainings || []).map((training) => {
+                            {(filteredTrainings || []).map((training) => {
                                 const completedCount = assignments.filter(a => a.trainingId === training.id && a.status === 'completed').length;
                                 const totalAssignments = assignments.filter(a => a.trainingId === training.id).length;
                                 return (
@@ -610,6 +664,9 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                         </Badge>
                                     </div>
                                     <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t">
+                                        <Button variant="outline" size="sm" onClick={() => setSelectedTrainingToEdit(training)}>
+                                            <Pencil className="mr-2 h-4 w-4" /> Editar
+                                        </Button>
                                         <AssignTrainingDialog training={training} users={initialUsers} onAssignmentsChange={handleAssignmentsChange} />
                                         <DeleteTrainingDialog trainingId={training.id} trainingTitle={training.title} />
                                     </div>
@@ -628,7 +685,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {(trainings || []).map((training) => {
+                                {(filteredTrainings || []).map((training) => {
                                     const completedCount = assignments.filter(a => a.trainingId === training.id && a.status === 'completed').length;
                                     const totalAssignments = assignments.filter(a => a.trainingId === training.id).length;
                                     return (
@@ -646,6 +703,9 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex items-center justify-end gap-2">
+                                                  <Button variant="outline" size="sm" onClick={() => setSelectedTrainingToEdit(training)}>
+                                                      <Pencil className="mr-2 h-3 w-3"/>Editar
+                                                  </Button>
                                                   <AssignTrainingDialog training={training} users={initialUsers} onAssignmentsChange={handleAssignmentsChange} />
                                                   <DeleteTrainingDialog trainingId={training.id} trainingTitle={training.title} />
                                                 </div>
@@ -655,6 +715,9 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                 })}
                             </TableBody>
                         </Table>
+                         {filteredTrainings.length === 0 && (
+                            <p className="text-sm text-muted-foreground text-center py-8">No se encontraron capacitaciones con los filtros aplicados.</p>
+                        )}
                     </CardContent>
                 </Card>
             </div>
@@ -733,7 +796,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                         />
                                     </PopoverContent>
                                 </Popover>
-                                <input type="hidden" name="scheduledDate" value={scheduledDate?.toISOString() || ''} />
+                                <input type="hidden" name="scheduledDate" value={scheduledDate ? scheduledDate.toISOString() : ''} />
                             </div>
                              <div className="space-y-2">
                                 <Label htmlFor="duration">Duración (minutos)</Label>
@@ -745,13 +808,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                 <Select name="category">
                                     <SelectTrigger id="category-trigger"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="Seguridad">Seguridad</SelectItem>
-                                        <SelectItem value="Calidad">Calidad</SelectItem>
-                                        <SelectItem value="DPO">DPO</SelectItem>
-                                        <SelectItem value="TPM">TPM</SelectItem>
-                                        <SelectItem value="Medio Ambiente">Medio Ambiente</SelectItem>
-                                        <SelectItem value="Mejora Enfocada">Mejora Enfocada</SelectItem>
-                                        <SelectItem value="Obligatoria">Obligatoria</SelectItem>
+                                        {TRAINING_CATEGORIES.map(cat => <SelectItem key={cat} value={cat}>{cat}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                                  {createTrainingState?.errors?.category && <p className="text-sm text-destructive">{createTrainingState.errors.category[0]}</p>}
@@ -830,6 +887,19 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
             assignments={userAssignments(selectedUser.id)}
             onOpenChange={() => setSelectedUser(null)}
             onAssignmentStatusChange={handleAssignmentStatusChange}
+        />
+    )}
+
+    {selectedTrainingToEdit && (
+        <EditTrainingDialog 
+            training={selectedTrainingToEdit}
+            leadershipUsers={leadershipUsers}
+            isOpen={!!selectedTrainingToEdit}
+            onOpenChange={(isOpen) => {
+                if (!isOpen) {
+                    setSelectedTrainingToEdit(null);
+                }
+            }}
         />
     )}
     </>

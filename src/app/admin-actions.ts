@@ -12,6 +12,7 @@ import {
   promoteUser as promoteUserData,
   findUserByEmail,
   assignTrainingToUser,
+  updateTraining as updateTrainingData,
 } from '@/lib/data';
 import type { Training, UserCategory } from '@/lib/types';
 import { getCurrentUserId } from '@/lib/auth';
@@ -91,6 +92,47 @@ export async function createTraining(prevState: any, formData: FormData) {
         return { message: error.message || 'No se pudo crear la capacitación.', errors: {} };
     }
 }
+
+export async function updateTraining(prevState: any, formData: FormData) {
+    const trainingId = formData.get('trainingId') as string;
+    if (!trainingId) {
+        return { message: 'ID de capacitación no encontrado.', errors: {} };
+    }
+    const scheduledDate = formData.get('scheduledDate');
+    const validatedFields = CreateTrainingSchema.safeParse({
+        title: formData.get('title'),
+        description: formData.get('description'),
+        category: formData.get('category'),
+        urgency: formData.get('urgency'),
+        duration: formData.get('duration'),
+        trainerName: formData.get('trainerName'),
+        scheduledDate: scheduledDate ? new Date(scheduledDate as string).toISOString() : undefined,
+    });
+
+    if (!validatedFields.success) {
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Error de validación. Por favor, revisa los campos.',
+        };
+    }
+
+    try {
+        await updateTrainingData(trainingId, {
+            title: validatedFields.data.title,
+            description: validatedFields.data.description,
+            category: validatedFields.data.category as Training['category'],
+            urgency: validatedFields.data.urgency as Training['urgency'],
+            duration: validatedFields.data.duration,
+            trainerName: validatedFields.data.trainerName,
+            scheduledDate: validatedFields.data.scheduledDate,
+        });
+        revalidatePath('/admin');
+        return { success: true, message: 'Capacitación actualizada exitosamente.', errors: {} };
+    } catch (error: any) {
+        return { message: error.message || 'No se pudo actualizar la capacitación.', errors: {} };
+    }
+}
+
 
 export async function assignTraining(trainingId: string, userId: string) {
     try {
