@@ -394,7 +394,17 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [trainerFilter, setTrainerFilter] = useState('all');
 
-  const leadershipUsers = initialUsers.filter(user => user.categories?.includes('Línea de Mando (FC)'));
+  const leadershipUsers = useMemo(() => {
+    const leaders = initialUsers.filter(user => user.categories?.includes('Línea de Mando (FC)'));
+    // Ensure currentUser is in the list if not already present
+    if (!leaders.some(leader => leader.id === currentUser.id)) {
+      const currentUserInList = initialUsers.find(u => u.id === currentUser.id);
+      if (currentUserInList) {
+        leaders.unshift(currentUserInList);
+      }
+    }
+    return leaders;
+  }, [initialUsers, currentUser]);
 
   const uniqueTrainers = useMemo(() => {
     const trainers = new Set(initialTrainings.map(t => t.trainerName));
@@ -869,7 +879,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                   </div>
                   <div>
                       <h3 className="text-lg font-semibold mb-2">Colección: 'assignments'</h3>
-                      <ScrollArea className="h-72 w-full rounded-md border p-4 bg-muted/ ৫০">
+                      <ScrollArea className="h-72 w-full rounded-md border p-4 bg-muted/  ৫০">
                           <pre className="text-sm">
                               {JSON.stringify(allAssignments, null, 2)}
                           </pre>
