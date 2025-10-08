@@ -39,7 +39,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import type { User, Training, Assignment, PopulatedAssignment, TrainingUrgency, TrainingCategory, UserCategory } from '@/lib/types';
 import { createUser, createTraining, promoteUser, assignTrainingToUsers, deleteTraining, deleteUser } from '@/app/admin-actions';
-import { FilePlus2, Loader2, UserPlus, Shield, Check, Users, Trash2, UserX, AlertCircle, Database, Calendar as CalendarIcon, Search, Pencil } from 'lucide-react';
+import { FilePlus2, Loader2, UserPlus, Shield, Check, Users, Trash2, UserX, AlertCircle, Database, Calendar as CalendarIcon, Search, Pencil, BookUser } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
@@ -70,9 +70,14 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { Calendar } from '../ui/calendar';
 import { EditTrainingDialog } from './EditTrainingDialog';
+import { TrainerDashboardClient } from '../dashboard/TrainerDashboardClient';
 
 const USER_CATEGORIES: UserCategory[] = ['Supervisión', 'Ingresantes', 'Operaciones', 'Línea de Mando (FC)', 'Terceros', 'Mantenimiento', 'Brigadistas'];
 const TRAINING_CATEGORIES: TrainingCategory[] = ['Seguridad', 'Calidad', 'DPO', 'TPM', 'Medio Ambiente', 'Mejora Enfocada', 'Obligatoria'];
+
+type TrainerTraining = Training & {
+    assignments: (Assignment & { user?: User | null })[];
+}
 
 function SubmitButton({ children, ...props }: { children: React.ReactNode } & React.ComponentProps<typeof Button>) {
   const { pending } = useFormStatus();
@@ -366,6 +371,7 @@ interface AdminPageClientProps {
   initialTrainings: TrainingWithAssignments[];
   allAssignments: Assignment[];
   currentUser: User;
+  trainerTrainings: TrainerTraining[];
 }
 
 const urgencyText: Record<TrainingUrgency, string> = {
@@ -374,7 +380,7 @@ const urgencyText: Record<TrainingUrgency, string> = {
   low: "Baja",
 };
 
-export function AdminPageClient({ initialUsers, initialTrainings, allAssignments, currentUser }: AdminPageClientProps) {
+export function AdminPageClient({ initialUsers, initialTrainings, allAssignments, currentUser, trainerTrainings }: AdminPageClientProps) {
   const [createUserState, createUserAction] = useActionState(createUser, initialCreateUserState);
   const [createTrainingState, createTrainingAction] = useActionState(createTraining, initialCreateTrainingState);
   
@@ -477,13 +483,15 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
   }
 
   const canSeeDataExplorer = currentUser.email === 'jfjuarezf@ccu.com.ar';
+  const isTrainer = trainerTrainings.length > 0;
 
   return (
     <>
     <Tabs defaultValue="users" className="w-full">
-      <TabsList className={`grid w-full grid-cols-1 md:h-10 ${canSeeDataExplorer ? 'md:grid-cols-4' : 'md:grid-cols-3'}`}>
+      <TabsList className={`grid w-full grid-cols-1 md:h-10 ${canSeeDataExplorer ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
         <TabsTrigger value="users">Gestión de Usuarios</TabsTrigger>
         <TabsTrigger value="trainings">Gestión de Capacitaciones</TabsTrigger>
+        {isTrainer && <TabsTrigger value="trainer-panel">Panel de Capacitador</TabsTrigger>}
         <TabsTrigger value="reports">Reportes</TabsTrigger>
         {canSeeDataExplorer && (
           <TabsTrigger value="data-explorer">
@@ -864,6 +872,13 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
             </div>
         </div>
       </TabsContent>
+      {isTrainer && (
+        <TabsContent value="trainer-panel">
+            <div className="mt-4">
+                <TrainerDashboardClient initialTrainings={trainerTrainings} />
+            </div>
+        </TabsContent>
+      )}
        <TabsContent value="reports">
         <ReportDashboard users={initialUsers} trainings={trainings} assignments={allAssignments} />
       </TabsContent>
