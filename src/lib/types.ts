@@ -2,7 +2,7 @@
 export type TrainingCategory = 'Seguridad' | 'Calidad' | 'DPO' | 'TPM' | 'Medio Ambiente' | 'Mejora Enfocada' | 'Obligatoria';
 export type TrainingStatus = 'completed' | 'pending';
 export type TrainingUrgency = 'high' | 'medium' | 'low';
-export type UserCategory = 'Supervisión' | 'Ingresantes' | 'Operaciones' | 'Línea de Mando (FC)' | 'Terceros' | 'Mantenimiento' | 'Brigadistas';
+export type UserCategory = 'Supervisión' | 'Ingresantes' | 'Operaciones' | 'Línea de Mando (FC)' | 'Terceros' | 'Mantenimiento' | 'Brigadistas' | 'RRHH';
 
 export type Training = {
   id: string;

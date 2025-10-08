@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useFormStatus } from 'react-dom';
 import React, { useState, useEffect, useRef, useTransition, useActionState, useMemo } from 'react';
@@ -39,7 +38,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import type { User, Training, Assignment, PopulatedAssignment, TrainingUrgency, TrainingCategory, UserCategory } from '@/lib/types';
 import { createUser, createTraining, promoteUser, assignTrainingToUsers, deleteTraining, deleteUser } from '@/app/admin-actions';
-import { FilePlus2, Loader2, UserPlus, Shield, Check, Users, Trash2, UserX, AlertCircle, Database, Calendar as CalendarIcon, Search, Pencil, BookUser } from 'lucide-react';
+import { FilePlus2, Loader2, UserPlus, Shield, Check, Users, Trash2, UserX, AlertCircle, Database, Calendar as CalendarIcon, Search, Pencil, BookUser, Briefcase } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
@@ -72,10 +71,10 @@ import { Calendar } from '../ui/calendar';
 import { EditTrainingDialog } from './EditTrainingDialog';
 import { TrainerDashboardClient } from '../dashboard/TrainerDashboardClient';
 
-const USER_CATEGORIES: UserCategory[] = ['Supervisión', 'Ingresantes', 'Operaciones', 'Línea de Mando (FC)', 'Terceros', 'Mantenimiento', 'Brigadistas'];
+const USER_CATEGORIES: UserCategory[] = ['Supervisión', 'Ingresantes', 'Operaciones', 'Línea de Mando (FC)', 'Terceros', 'Mantenimiento', 'Brigadistas', 'RRHH'];
 const TRAINING_CATEGORIES: TrainingCategory[] = ['Seguridad', 'Calidad', 'DPO', 'TPM', 'Medio Ambiente', 'Mejora Enfocada', 'Obligatoria'];
 
-type TrainerTraining = Training & {
+type PopulatedTraining = Training & {
     assignments: (Assignment & { user?: User | null })[];
 }
 
@@ -371,7 +370,8 @@ interface AdminPageClientProps {
   initialTrainings: TrainingWithAssignments[];
   allAssignments: Assignment[];
   currentUser: User;
-  trainerTrainings: TrainerTraining[];
+  trainerTrainings: PopulatedTraining[];
+  allPopulatedTrainings: PopulatedTraining[];
 }
 
 const urgencyText: Record<TrainingUrgency, string> = {
@@ -380,7 +380,7 @@ const urgencyText: Record<TrainingUrgency, string> = {
   low: "Baja",
 };
 
-export function AdminPageClient({ initialUsers, initialTrainings, allAssignments, currentUser, trainerTrainings }: AdminPageClientProps) {
+export function AdminPageClient({ initialUsers, initialTrainings, allAssignments, currentUser, trainerTrainings, allPopulatedTrainings }: AdminPageClientProps) {
   const [createUserState, createUserAction] = useActionState(createUser, initialCreateUserState);
   const [createTrainingState, createTrainingAction] = useActionState(createTraining, initialCreateTrainingState);
   
@@ -402,15 +402,18 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
   const [trainerFilter, setTrainerFilter] = useState('all');
 
   const leadershipUsers = useMemo(() => {
-    const leaders = initialUsers.filter(user => user.categories?.includes('Línea de Mando (FC)'));
-    // Ensure currentUser is in the list if not already present
-    if (!leaders.some(leader => leader.id === currentUser.id)) {
-      const currentUserInList = initialUsers.find(u => u.id === currentUser.id);
-      if (currentUserInList) {
-        leaders.unshift(currentUserInList);
+    const leaders = new Set<User>();
+    initialUsers.forEach(user => {
+      if (user.categories?.includes('Línea de Mando (FC)')) {
+        leaders.add(user);
       }
+    });
+    // Ensure currentUser is in the list if not already present
+    const currentUserInList = initialUsers.find(u => u.id === currentUser.id);
+    if (currentUserInList) {
+        leaders.add(currentUserInList);
     }
-    return leaders;
+    return Array.from(leaders);
   }, [initialUsers, currentUser]);
 
   const uniqueTrainers = useMemo(() => {
@@ -484,21 +487,39 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
 
   const canSeeDataExplorer = currentUser.email === 'jfjuarezf@ccu.com.ar';
   const isTrainer = trainerTrainings.length > 0;
+  const isRRHH = currentUser.categories?.includes('RRHH');
+
+  const getVisibleTabs = () => {
+    const tabs = [
+        { value: 'users', label: 'Gestión de Usuarios' },
+        { value: 'trainings', label: 'Gestión de Capacitaciones' },
+    ];
+    if (isTrainer) {
+        tabs.push({ value: 'trainer-panel', label: 'Panel de Capacitador' });
+    }
+    if (isRRHH) {
+        tabs.push({ value: 'rrhh-supervision', label: 'Supervisión RRHH' });
+    }
+    tabs.push({ value: 'reports', label: 'Reportes' });
+    if (canSeeDataExplorer) {
+        tabs.push({ value: 'data-explorer', label: 'Explorador de Datos', icon: Database });
+    }
+    return tabs;
+  };
+
+  const visibleTabs = getVisibleTabs();
+
 
   return (
     <>
     <Tabs defaultValue="users" className="w-full">
-      <TabsList className={`grid w-full grid-cols-1 md:h-10 ${canSeeDataExplorer ? 'md:grid-cols-5' : 'md:grid-cols-4'}`}>
-        <TabsTrigger value="users">Gestión de Usuarios</TabsTrigger>
-        <TabsTrigger value="trainings">Gestión de Capacitaciones</TabsTrigger>
-        {isTrainer && <TabsTrigger value="trainer-panel">Panel de Capacitador</TabsTrigger>}
-        <TabsTrigger value="reports">Reportes</TabsTrigger>
-        {canSeeDataExplorer && (
-          <TabsTrigger value="data-explorer">
-            <Database className="mr-2 h-4 w-4" />
-            Explorador de Datos
-          </TabsTrigger>
-        )}
+      <TabsList className={`grid w-full grid-cols-1 md:h-10 md:grid-cols-${visibleTabs.length}`}>
+        {visibleTabs.map(tab => (
+             <TabsTrigger key={tab.value} value={tab.value}>
+                {tab.icon && <tab.icon className="mr-2 h-4 w-4" />}
+                {tab.label}
+            </TabsTrigger>
+        ))}
       </TabsList>
       <TabsContent value="users">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
@@ -879,6 +900,24 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
             </div>
         </TabsContent>
       )}
+      {isRRHH && (
+        <TabsContent value="rrhh-supervision">
+            <Card className="mt-4">
+                <CardHeader>
+                    <CardTitle className="flex items-center">
+                        <Briefcase className="mr-2" />
+                        Supervisión Global de Capacitaciones (RRHH)
+                    </CardTitle>
+                    <CardDescription>
+                        Visualiza todas las capacitaciones y gestiona el progreso de todos los participantes.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <TrainerDashboardClient initialTrainings={allPopulatedTrainings} />
+                </CardContent>
+            </Card>
+        </TabsContent>
+       )}
        <TabsContent value="reports">
         <ReportDashboard users={initialUsers} trainings={trainings} assignments={allAssignments} />
       </TabsContent>

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-const userCategories = z.enum(['Supervisión', 'Ingresantes', 'Operaciones', 'Línea de Mando (FC)', 'Terceros', 'Mantenimiento', 'Brigadistas']);
+const userCategories = z.enum(['Supervisión', 'Ingresantes', 'Operaciones', 'Línea de Mando (FC)', 'Terceros', 'Mantenimiento', 'Brigadistas', 'RRHH']);
 
 export const CreateUserSchema = z.object({
   name: z.string().min(3, { message: 'El nombre debe tener al menos 3 caracteres.' }),

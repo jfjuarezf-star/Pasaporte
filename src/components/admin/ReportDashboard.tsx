@@ -157,7 +157,7 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
       const userAssignments = assignments.filter(a => a.userId === user.id);
       if (userAssignments.length === 0) {
         return [{
-          userName: user.name, userEmail: user.email, trainingTitle: 'N/A', category: 'N/A',
+          userName: user.name, userEmail: user.email, trainingTitle: 'N/A', category: 'N/A', trainerName: 'N/A',
           status: 'Sin asignaciones', assignedDate: 'N/A', completionDate: 'N/A',
         }];
       }
@@ -166,6 +166,7 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
         return {
           userName: user.name, userEmail: user.email,
           trainingTitle: training?.title || 'N/A', category: training?.category || 'N/A',
+          trainerName: training?.trainerName || 'N/A',
           status: assignment.status === 'completed' ? 'Completado' : 'Pendiente',
           assignedDate: assignment.assignedDate ? format(new Date(assignment.assignedDate), 'yyyy-MM-dd') : 'N/A',
           completionDate: assignment.completedDate ? format(new Date(assignment.completedDate), 'yyyy-MM-dd') : 'N/A',
@@ -173,6 +174,17 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
       });
     });
   }, [users, trainings, assignments]);
+
+  const csvHeaders = [
+    { label: "Nombre Usuario", key: "userName" }, 
+    { label: "Email Usuario", key: "userEmail" },
+    { label: "Capacitación", key: "trainingTitle" }, 
+    { label: "Categoría", key: "category" },
+    { label: "Responsable", key: "trainerName" },
+    { label: "Estado", key: "status" }, 
+    { label: "Fecha de Asignación", key: "assignedDate" },
+    { label: "Fecha de Finalización", key: "completionDate" },
+  ];
 
   return (
     <div className="space-y-6 mt-4">
@@ -185,12 +197,7 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
             <div className="flex items-center gap-4">
                  <CSVLink
                     data={csvData}
-                    headers={[
-                        { label: "Nombre Usuario", key: "userName" }, { label: "Email Usuario", key: "userEmail" },
-                        { label: "Capacitación", key: "trainingTitle" }, { label: "Categoría", key: "category" },
-                        { label: "Estado", key: "status" }, { label: "Fecha de Asignación", key: "assignedDate" },
-                        { label: "Fecha de Finalización", key: "completionDate" },
-                    ]}
+                    headers={csvHeaders}
                     filename={`reporte_capacitaciones_${format(new Date(), 'yyyy-MM-dd')}.csv`}
                     className="w-full"
                 >

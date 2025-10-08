@@ -9,7 +9,7 @@ type TrainingWithAssignments = Training & {
     assignments: Assignment[];
 }
 
-type TrainerTraining = Training & {
+type PopulatedTraining = Training & {
     assignments: (Assignment & { user?: User | null })[];
 }
 
@@ -38,11 +38,11 @@ export default async function AdminPage() {
         assignments: allAssignments.filter(a => a.trainingId === training.id),
     }));
 
-    // Data for Trainer Dashboard view (if admin is also a trainer)
-    const trainerOfTrainings = await getTrainingsByTrainerName(currentUser.name);
     const usersMap = new Map(users.map(u => [u.id, u]));
 
-    const populatedTrainerTrainings: TrainerTraining[] = await Promise.all(
+    // Data for Trainer Dashboard view (if admin is also a trainer)
+    const trainerOfTrainings = await getTrainingsByTrainerName(currentUser.name);
+    const populatedTrainerTrainings: PopulatedTraining[] = await Promise.all(
         trainerOfTrainings.map(async (training) => {
             const assignments = await getAssignmentsForTraining(training.id);
             const populatedAssignments = assignments.map(assignment => ({
@@ -57,6 +57,19 @@ export default async function AdminPage() {
         })
     );
 
+    // Data for RRHH view (all trainings with participants)
+    const allPopulatedTrainings: PopulatedTraining[] = trainingsData.map(training => {
+        const relatedAssignments = allAssignments.filter(a => a.trainingId === training.id);
+        const populatedAssignments = relatedAssignments.map(assignment => ({
+            ...assignment,
+            user: usersMap.get(assignment.userId)
+        }));
+        return {
+            ...training,
+            assignments: populatedAssignments,
+        };
+    });
+
 
     return (
         <div className="container mx-auto p-0 sm:p-4">
@@ -70,6 +83,7 @@ export default async function AdminPage() {
                 allAssignments={allAssignments}
                 currentUser={currentUser}
                 trainerTrainings={populatedTrainerTrainings}
+                allPopulatedTrainings={allPopulatedTrainings}
             />
         </div>
     );
