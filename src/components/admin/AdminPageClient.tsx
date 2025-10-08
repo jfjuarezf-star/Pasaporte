@@ -513,7 +513,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
   return (
     <>
     <Tabs defaultValue="users" className="w-full">
-      <TabsList className={`grid w-full grid-cols-1 md:h-10 md:grid-cols-${visibleTabs.length}`}>
+      <TabsList className="flex flex-wrap h-auto">
         {visibleTabs.map(tab => (
              <TabsTrigger key={tab.value} value={tab.value}>
                 {tab.icon && <tab.icon className="mr-2 h-4 w-4" />}
@@ -989,3 +989,5 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
     </>
   );
 }
+
+    
