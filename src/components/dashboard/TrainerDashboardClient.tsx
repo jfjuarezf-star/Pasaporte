@@ -1,0 +1,164 @@
+
+'use client';
+
+import React, { useState, useTransition } from 'react';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { updateTrainingStatus } from '@/app/actions';
+import { Assignment, Training, User } from '@/lib/types';
+import { Check, Loader2, BookUser } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { format } from 'date-fns';
+
+type TrainingWithAssignmentsAndUsers = Training & {
+    assignments: (Assignment & { user?: User | null })[];
+}
+
+interface TrainerDashboardClientProps {
+    initialTrainings: TrainingWithAssignmentsAndUsers[];
+}
+
+function MarkCompleteButton({ assignmentId, onComplete }: { assignmentId: string, onComplete: (id: string) => void }) {
+    const [isPending, startTransition] = useTransition();
+
+    const handleMarkComplete = () => {
+        startTransition(async () => {
+            await updateTrainingStatus(assignmentId, true);
+            onComplete(assignmentId);
+        });
+    };
+
+    return (
+        <Button size="sm" onClick={handleMarkComplete} disabled={isPending}>
+            {isPending ? (
+                <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Marcando...
+                </>
+            ) : (
+                <>
+                    <Check className="mr-2 h-4 w-4" />
+                    Marcar Completo
+                </>
+            )}
+        </Button>
+    );
+}
+
+
+export function TrainerDashboardClient({ initialTrainings }: TrainerDashboardClientProps) {
+    const [trainings, setTrainings] = useState(initialTrainings);
+
+    const handleAssignmentCompleted = (assignmentId: string) => {
+        setTrainings(currentTrainings => 
+            currentTrainings.map(training => ({
+                ...training,
+                assignments: training.assignments.map(assignment => 
+                    assignment.id === assignmentId 
+                    ? { ...assignment, status: 'completed', completedDate: new Date().toISOString() } 
+                    : assignment
+                ),
+            }))
+        );
+    };
+
+    const getInitials = (name: string) => {
+        return name
+          .split(" ")
+          .map((n) => n[0])
+          .join("");
+      };
+
+    if (trainings.length === 0) {
+        return (
+             <Card>
+                <CardHeader>
+                    <CardTitle className='flex items-center gap-2'>
+                        <BookUser />
+                        Sin Capacitaciones a Cargo
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-muted-foreground">Actualmente no estás asignado como responsable de ninguna capacitación.</p>
+                </CardContent>
+            </Card>
+        )
+    }
+
+    return (
+        <Accordion type="single" collapsible className="w-full space-y-4">
+            {trainings.map(training => {
+                const pendingCount = training.assignments.filter(a => a.status === 'pending').length;
+                const completedCount = training.assignments.filter(a => a.status === 'completed').length;
+
+                return (
+                    <AccordionItem value={training.id} key={training.id} className="border-none">
+                        <Card className='overflow-hidden'>
+                            <AccordionTrigger className="p-6 hover:no-underline hover:bg-muted/50">
+                                <div className='flex flex-col sm:flex-row sm:items-center justify-between w-full'>
+                                    <div className='text-left'>
+                                        <h3 className="font-semibold text-lg">{training.title}</h3>
+                                        <p className="text-sm text-muted-foreground">
+                                            {training.scheduledDate ? `Programada para: ${format(new Date(training.scheduledDate), 'PPP')}` : 'Sin fecha programada'}
+                                        </p>
+                                    </div>
+                                    <div className="flex items-center gap-4 mt-2 sm:mt-0">
+                                        <Badge variant="secondary">Completados: {completedCount}</Badge>
+                                        <Badge variant={pendingCount > 0 ? "destructive" : "default"}>Pendientes: {pendingCount}</Badge>
+                                    </div>
+                                </div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                                <div className="p-6 pt-0">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead className='w-[60px]'></TableHead>
+                                                <TableHead>Participante</TableHead>
+                                                <TableHead>Email</TableHead>
+                                                <TableHead>Estado</TableHead>
+                                                <TableHead className="text-right">Acción</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {training.assignments.map(({ id, user, status, completedDate }) => (
+                                                <TableRow key={id}>
+                                                    <TableCell>
+                                                        <Avatar className='h-8 w-8'>
+                                                            <AvatarImage src={user?.avatarUrl} alt={user?.name} />
+                                                            <AvatarFallback>{user ? getInitials(user.name) : '?'}</AvatarFallback>
+                                                        </Avatar>
+                                                    </TableCell>
+                                                    <TableCell className="font-medium">{user?.name || 'Usuario no encontrado'}</TableCell>
+                                                    <TableCell>{user?.email || '-'}</TableCell>
+                                                    <TableCell>
+                                                        {status === 'completed' ? (
+                                                            <Badge variant='secondary' className='bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100'>Completado</Badge>
+                                                        ) : (
+                                                            <Badge variant='destructive'>Pendiente</Badge>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {status === 'pending' && user && (
+                                                            <MarkCompleteButton assignmentId={id} onComplete={handleAssignmentCompleted} />
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                     {training.assignments.length === 0 && (
+                                        <p className="text-center text-muted-foreground py-8">No hay participantes asignados a esta capacitación.</p>
+                                    )}
+                                </div>
+                            </AccordionContent>
+                        </Card>
+                    </AccordionItem>
+                )
+            })}
+        </Accordion>
+    );
+}

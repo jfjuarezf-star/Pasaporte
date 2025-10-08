@@ -2,7 +2,7 @@
 "use client";
 
 import Link from "next/link";
-import { LogOut, ShieldCheck, KeyRound, UserSquare, Loader2 } from "lucide-react";
+import { LogOut, ShieldCheck, KeyRound, UserSquare, Loader2, BookUser } from "lucide-react";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 
@@ -19,7 +19,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { User } from "@/lib/types";
 import { logout } from "@/app/actions";
 
-export function Header({ user }: { user: User }) {
+export function Header({ user, isTrainer }: { user: User, isTrainer?: boolean }) {
   const [loadingLink, setLoadingLink] = useState<string | null>(null);
   const pathname = usePathname();
 
@@ -80,6 +80,14 @@ export function Header({ user }: { user: User }) {
                         </Link>
                     </DropdownMenuItem>
                 </>
+             )}
+             {isTrainer && (
+                <DropdownMenuItem asChild>
+                    <Link href="/dashboard/trainer" onClick={() => handleLinkClick('/dashboard/trainer')} className="flex items-center w-full">
+                        {loadingLink === '/dashboard/trainer' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <BookUser className="mr-2 h-4 w-4" />}
+                        <span>Panel de Capacitador</span>
+                    </Link>
+                </DropdownMenuItem>
              )}
             <DropdownMenuItem asChild>
               <Link href="/dashboard/change-password" onClick={() => handleLinkClick('/dashboard/change-password')} className="flex items-center w-full">

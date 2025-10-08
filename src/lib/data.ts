@@ -1,4 +1,5 @@
 
+
 'use server';
 import 'server-only';
 import { getFirebaseAdmin } from '@/lib/firebase';
@@ -185,6 +186,21 @@ export const getAllTrainings = async (): Promise<Training[]> => {
         return [];
     }
 };
+
+export const getTrainingsByTrainerName = async (trainerName: string): Promise<Training[]> => {
+    const { db } = getFirebaseAdmin();
+    if (!db) return [];
+    try {
+        const trainingsRef = db.collection('trainings');
+        const q = trainingsRef.where('trainerName', '==', trainerName);
+        const querySnapshot = await q.get();
+        return querySnapshot.docs.map(doc => docToData<Training>(doc));
+    } catch (error) {
+        console.error(`Error fetching trainings for trainer ${trainerName}:`, error);
+        return [];
+    }
+};
+
 
 export const createTraining = async (trainingData: Omit<Training, 'id'>): Promise<string> => {
     const { db } = getFirebaseAdmin();
