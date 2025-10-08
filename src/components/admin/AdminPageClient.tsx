@@ -389,7 +389,8 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
 
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
 
-  // Filters for trainings list
+  // Filters for lists
+  const [userSearch, setUserSearch] = useState('');
   const [titleSearch, setTitleSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [trainerFilter, setTrainerFilter] = useState('all');
@@ -410,6 +411,13 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
     const trainers = new Set(initialTrainings.map(t => t.trainerName));
     return Array.from(trainers);
   }, [initialTrainings]);
+
+  const filteredUsers = useMemo(() => {
+    return initialUsers.filter(user => 
+        user.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+        user.email.toLowerCase().includes(userSearch.toLowerCase())
+    );
+  }, [initialUsers, userSearch]);
 
   const filteredTrainings = useMemo(() => {
     return trainings.filter(training => {
@@ -490,11 +498,20 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                 <Card>
                     <CardHeader>
                         <CardTitle>Lista de Usuarios</CardTitle>
-                        <CardDescription>Esta tabla es una vista en vivo de tu colección 'users' en Firestore. Haz clic en un usuario para ver sus detalles.</CardDescription>
+                        <CardDescription>Busca, filtra y gestiona los usuarios de la plataforma.</CardDescription>
+                        <div className="relative pt-4">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                                placeholder="Buscar por nombre o email..."
+                                className="pl-8"
+                                value={userSearch}
+                                onChange={(e) => setUserSearch(e.target.value)}
+                            />
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <div className="md:hidden space-y-4">
-                            {(initialUsers || []).map((user) => (
+                            {(filteredUsers || []).map((user) => (
                                 <Card key={user.id} className="p-4 cursor-pointer hover:bg-muted/50" onClick={() => setSelectedUser(user)}>
                                     <div className="flex justify-between items-start">
                                         <div>
@@ -528,7 +545,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {(initialUsers || []).map((user) => (
+                                {(filteredUsers || []).map((user) => (
                                 <TableRow key={user.id} className="cursor-pointer" onClick={() => setSelectedUser(user)}>
                                     <TableCell className="font-medium">{user.name}</TableCell>
                                     <TableCell>{user.email}</TableCell>
@@ -548,6 +565,9 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                 ))}
                             </TableBody>
                         </Table>
+                         {filteredUsers.length === 0 && (
+                            <p className="text-sm text-muted-foreground text-center py-8">No se encontraron usuarios.</p>
+                        )}
                     </CardContent>
                 </Card>
             </div>
