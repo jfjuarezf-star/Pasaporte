@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useActionState, useEffect, useRef } from 'react';
@@ -42,12 +43,10 @@ const initialFormState = { message: '', errors: {}, success: false };
 
 export function EditTrainingDialog({
   training,
-  leadershipUsers,
   isOpen,
   onOpenChange,
 }: {
   training: Training;
-  leadershipUsers: User[];
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -71,8 +70,8 @@ export function EditTrainingDialog({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Editar Capacitación</DialogTitle>
-          <DialogDescription>Modifica los detalles de la capacitación.</DialogDescription>
+          <DialogTitle>Editar Plantilla de Capacitación</DialogTitle>
+          <DialogDescription>Modifica los detalles de la plantilla.</DialogDescription>
         </DialogHeader>
         <form action={formAction} ref={formRef}>
            <input type="hidden" name="trainingId" value={training.id} />
@@ -90,7 +89,7 @@ export function EditTrainingDialog({
                     <AlertTitle>Éxito</AlertTitle>
                     <AlertDescription>{state.message}</AlertDescription>
                 </Alert>
-            )}
+             )}
             <div className="space-y-2">
                 <Label htmlFor="title">Título</Label>
                 <Input id="title" name="title" required defaultValue={training.title} />
@@ -100,19 +99,6 @@ export function EditTrainingDialog({
                 <Label htmlFor="description">Descripción</Label>
                 <Textarea id="description" name="description" required defaultValue={training.description} />
                 {state?.errors?.description && <p className="text-sm text-destructive">{state.errors.description[0]}</p>}
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor="trainerName">Responsable</Label>
-                <Select name="trainerName" defaultValue={training.trainerName}>
-                    <SelectTrigger><SelectValue placeholder="Seleccionar responsable" /></SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="Tercero">Tercero (Contratista)</SelectItem>
-                        {leadershipUsers.map(user => (
-                            <SelectItem key={user.id} value={user.name}>{user.name}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-                {state?.errors?.trainerName && <p className="text-sm text-destructive">{state.errors.trainerName[0]}</p>}
             </div>
             <div className="space-y-2">
                 <Label htmlFor="duration">Duración (minutos)</Label>
@@ -148,3 +134,4 @@ export function EditTrainingDialog({
     </Dialog>
   );
 }
+

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useTransition } from 'react';
@@ -8,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { updateTrainingStatus } from '@/app/actions';
 import type { PopulatedTrainingWithUsers } from '@/lib/types';
-import { Check, Loader2, BookUser, Clock, BookOpen } from 'lucide-react';
+import { Check, Loader2, BookUser, Clock, BookOpen, User } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
@@ -49,7 +50,7 @@ export function TrainingUsersDialog({
         <DialogHeader>
           <DialogTitle className="font-headline text-2xl">Participantes de: {training.title}</DialogTitle>
           <DialogDescription>
-            Gestiona el progreso de los usuarios asignados a esta capacitación. Responsable: {training.trainerName}.
+            Gestiona el progreso de los usuarios asignados a esta capacitación.
           </DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh] pr-4">
@@ -58,7 +59,7 @@ export function TrainingUsersDialog({
               <h3 className="text-lg font-semibold mb-3">Pendientes ({pendingParticipants.length})</h3>
               <div className="space-y-3">
                 {pendingParticipants.length > 0 ? (
-                  pendingParticipants.map(({ id, user }) => (
+                  pendingParticipants.map(({ id, user, trainerName, scheduledDate }) => (
                     <div key={id} className="flex items-center justify-between p-3 rounded-lg border bg-background/50">
                       <div className="flex items-center gap-3">
                         <Avatar className='h-9 w-9'>
@@ -67,7 +68,10 @@ export function TrainingUsersDialog({
                         </Avatar>
                         <div>
                             <p className="font-semibold">{user?.name || 'Usuario no encontrado'}</p>
-                            <p className="text-sm text-muted-foreground">{user?.email || '-'}</p>
+                            <div className="text-xs text-muted-foreground flex items-center gap-4">
+                               {trainerName && <span className="flex items-center gap-1"><User className="h-3 w-3" /> {trainerName}</span>}
+                               {scheduledDate && <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {format(new Date(scheduledDate), 'PPP', { locale: es })}</span>}
+                            </div>
                         </div>
                       </div>
                       <Button
@@ -128,3 +132,4 @@ export function TrainingUsersDialog({
     </Dialog>
   );
 }
+

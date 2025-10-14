@@ -1,6 +1,7 @@
 
 
 
+
 'use server';
 import 'server-only';
 import { getFirebaseAdmin } from '@/lib/firebase';
@@ -232,10 +233,20 @@ export const getTrainingsByTrainerName = async (trainerName: string): Promise<Tr
     const { db } = getFirebaseAdmin();
     if (!db) return [];
     try {
+        // This function is complex now. We need to find assignments for the trainer, then get unique trainings.
+        const assignmentsRef = db.collection('assignments');
+        const assignmentQuery = assignmentsRef.where('trainerName', '==', trainerName);
+        const assignmentSnap = await assignmentQuery.get();
+        if (assignmentSnap.empty) {
+            return [];
+        }
+
+        const trainingIds = [...new Set(assignmentSnap.docs.map(doc => doc.data().trainingId))];
+
         const trainingsRef = db.collection('trainings');
-        const q = trainingsRef.where('trainerName', '==', trainerName);
-        const querySnapshot = await q.get();
-        return querySnapshot.docs.map(doc => docToData<Training>(doc));
+        const trainingsQuery = await trainingsRef.where(admin.firestore.FieldPath.documentId(), 'in', trainingIds).get();
+        
+        return trainingsQuery.docs.map(doc => docToData<Training>(doc));
     } catch (error) {
         console.error(`Error fetching trainings for trainer ${trainerName}:`, error);
         return [];
@@ -279,20 +290,27 @@ export const deleteTraining = async (trainingId: string): Promise<void> => {
 };
 
 // --- ASSIGNMENT FUNCTIONS ---
+export const getAssignmentsForUser = async(userId: string): Promise<Assignment[]> => {
+    const { db } = getFirebaseAdmin();
+    if (!db) return [];
+
+    const assignmentsRef = db.collection('assignments');
+    const q = assignmentsRef.where('userId', '==', userId);
+    const querySnapshot = await q.get();
+    return querySnapshot.docs.map(doc => docToData<Assignment>(doc));
+}
+
 export const getTrainingsForUser = async (userId: string): Promise<PopulatedAssignment[]> => {
     const { db } = getFirebaseAdmin();
     if (!db) return [];
 
     try {
-        const assignmentsRef = db.collection('assignments');
-        const q = assignmentsRef.where('userId', '==', userId);
-        const assignmentsSnapshot = await q.get();
+        const assignments = await getAssignmentsForUser(userId);
 
-        if (assignmentsSnapshot.empty) {
+        if (assignments.length === 0) {
             return [];
         }
 
-        const assignments = assignmentsSnapshot.docs.map(doc => docToData<Assignment>(doc));
         const trainingIds = [...new Set(assignments.map(a => a.trainingId))];
 
         if (trainingIds.length === 0) {
@@ -333,16 +351,21 @@ export const updateAssignmentStatus = async (assignmentId: string, status: Train
     await assignmentRef.update(updateData);
 };
 
-export const assignTrainingToUser = async (trainingId: string, userId: string, scheduledDate?: string): Promise<void> => {
+export const assignTrainingToUser = async (trainingId: string, userId: string, scheduledDate?: string, trainerName?: string): Promise<void> => {
     const { db } = getFirebaseAdmin();
     if (!db) throw new Error("Database not initialized for assignTrainingToUser.");
 
     const assignmentsRef = db.collection('assignments');
-    const q = assignmentsRef.where('userId', '==', userId).where('trainingId', '==', trainingId);
+    // An assignment is unique per user, training, trainer and date.
+    // A user could be assigned the same training twice by different trainers or on different dates.
+    const q = assignmentsRef.where('userId', '==', userId)
+                            .where('trainingId', '==', trainingId)
+                            .where('trainerName', '==', trainerName)
+                            .where('scheduledDate', '==', scheduledDate);
     const existing = await q.get();
 
     if (!existing.empty) {
-      console.log(`Assignment already exists for user ${userId} and training ${trainingId}`);
+      console.log(`Assignment already exists for user ${userId}, training ${trainingId}, trainer ${trainerName} and date ${scheduledDate}`);
       return;
     }
     
@@ -354,27 +377,24 @@ export const assignTrainingToUser = async (trainingId: string, userId: string, s
         completedDate: null,
     };
 
-    if (scheduledDate) {
-        newAssignment.scheduledDate = scheduledDate;
-    }
+    if (scheduledDate) newAssignment.scheduledDate = scheduledDate;
+    if (trainerName) newAssignment.trainerName = trainerName;
 
     await assignmentsRef.add(newAssignment);
 };
 
-export const assignTrainingToUsers = async (trainingId: string, userIds: string[], scheduledDate?: string): Promise<void> => {
+export const assignTrainingToUsers = async (trainingId: string, userIds: string[], scheduledDate?: string, trainerName?: string): Promise<void> => {
     const { db } = getFirebaseAdmin();
     if (!db) throw new Error("Database not initialized for assignTrainingToUsers.");
     
     const assignmentsRef = db.collection('assignments');
     
-    // Get existing assignments for this training to avoid duplicates
-    const existingAssignmentsSnap = await assignmentsRef.where('trainingId', '==', trainingId).get();
-    const existingUserIds = new Set(existingAssignmentsSnap.docs.map(doc => doc.data().userId));
+    // We can't query for existing assignments efficiently for a batch, 
+    // so we'll rely on client-side logic to filter out already-assigned users for a given training.
+    // The client-side logic is not perfect but prevents most common duplicates.
 
     const batch = db.batch();
-    const userIdsToAssign = userIds.filter(id => !existingUserIds.has(id));
-
-    for (const userId of userIdsToAssign) {
+    for (const userId of userIds) {
       const newAssignmentRef = db.collection("assignments").doc();
       const newAssignment: Omit<Assignment, 'id'> = {
         userId,
@@ -383,13 +403,13 @@ export const assignTrainingToUsers = async (trainingId: string, userIds: string[
         assignedDate: new Date().toISOString(),
         completedDate: null,
       };
-      if (scheduledDate) {
-        newAssignment.scheduledDate = scheduledDate;
-      }
+      if (scheduledDate) newAssignment.scheduledDate = scheduledDate;
+      if (trainerName) newAssignment.trainerName = trainerName;
+      
       batch.set(newAssignmentRef, newAssignment);
     }
 
-    if (userIdsToAssign.length > 0) {
+    if (userIds.length > 0) {
         await batch.commit();
     }
 };

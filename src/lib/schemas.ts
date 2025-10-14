@@ -1,4 +1,5 @@
 
+
 import { z } from 'zod';
 
 const userCategories = z.enum(['Supervisión', 'Ingresantes', 'Operaciones', 'Línea de Mando (FC)', 'Terceros', 'Mantenimiento', 'Brigadistas', 'RRHH']);
@@ -44,7 +45,6 @@ export const CreateTrainingSchema = z.object({
   category: z.enum(['Seguridad', 'Calidad', 'DPO', 'TPM', 'Medio Ambiente', 'Mejora Enfocada', 'Obligatoria'], { errorMap: () => ({ message: 'Debes seleccionar una categoría.' }) }),
   urgency: z.enum(['high', 'medium', 'low'], { errorMap: () => ({ message: 'Debes seleccionar una urgencia.' }) }),
   duration: z.coerce.number().min(1, { message: 'La duración debe ser al menos 1 minuto.' }),
-  trainerName: z.string().min(3, { message: 'Debes seleccionar un responsable.' }),
 });
 
 export const ChangePasswordSchema = z
@@ -57,3 +57,4 @@ export const ChangePasswordSchema = z
     message: 'Las nuevas contraseñas no coinciden.',
     path: ['confirmPassword'],
   });
+

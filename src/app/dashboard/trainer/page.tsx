@@ -1,13 +1,14 @@
 
+
 import { getCurrentUserId } from "@/lib/auth";
-import { getTrainingsByTrainerName, getAssignmentsForTraining, getUserById, getAllUsers } from "@/lib/data";
+import { getAllUsers, getAllTrainings, getAllAssignments, getUserById } from "@/lib/data";
 import { redirect } from "next/navigation";
 import { TrainerDashboardClient } from "@/components/dashboard/TrainerDashboardClient";
 import { Training, Assignment, User } from "@/lib/types";
 
 export const dynamic = 'force-dynamic';
 
-type TrainingWithAssignmentsAndUsers = Training & {
+type PopulatedTraining = Training & {
     assignments: (Assignment & { user?: User | null })[];
 }
 
@@ -22,9 +23,10 @@ export default async function TrainerPage() {
         redirect('/');
     }
 
-    const trainerOfTrainings = await getTrainingsByTrainerName(currentUser.name);
+    const allAssignments = await getAllAssignments();
+    const trainerAssignments = allAssignments.filter(a => a.trainerName === currentUser.name);
 
-    if (trainerOfTrainings.length === 0 && currentUser.role !== 'admin') {
+    if (trainerAssignments.length === 0 && currentUser.role !== 'admin') {
         // If not a trainer and not an admin, redirect them away.
         redirect('/dashboard');
     }
@@ -32,20 +34,27 @@ export default async function TrainerPage() {
     const allUsers = await getAllUsers();
     const usersMap = new Map(allUsers.map(u => [u.id, u]));
 
-    const populatedTrainings: TrainingWithAssignmentsAndUsers[] = await Promise.all(
-        trainerOfTrainings.map(async (training) => {
-            const assignments = await getAssignmentsForTraining(training.id);
-            const populatedAssignments = assignments.map(assignment => ({
-                ...assignment,
-                user: usersMap.get(assignment.userId)
-            }));
-            
-            return {
-                ...training,
-                assignments: populatedAssignments,
-            };
-        })
-    );
+    const allTrainings = await getAllTrainings();
+    const trainingsMap = new Map(allTrainings.map(t => [t.id, t]));
+
+    const populatedTrainingsMap = new Map<string, PopulatedTraining>();
+
+    for (const assignment of trainerAssignments) {
+        const trainingDetails = trainingsMap.get(assignment.trainingId);
+        if (trainingDetails) {
+            if (!populatedTrainingsMap.has(assignment.trainingId)) {
+                populatedTrainingsMap.set(assignment.trainingId, {
+                    ...trainingDetails,
+                    assignments: [],
+                });
+            }
+            const user = usersMap.get(assignment.userId);
+            populatedTrainingsMap.get(assignment.trainingId)!.assignments.push({ ...assignment, user });
+        }
+    }
+    
+    const populatedTrainings = Array.from(populatedTrainingsMap.values());
+
 
     return (
         <div className="container mx-auto">
@@ -57,3 +66,4 @@ export default async function TrainerPage() {
         </div>
     );
 }
+

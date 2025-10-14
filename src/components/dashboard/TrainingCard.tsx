@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -100,7 +101,7 @@ export function TrainingCard({
          <div className="text-sm text-gray-600 space-y-2">
             <div className="flex items-center gap-2">
                 <User className="h-4 w-4 text-muted-foreground"/>
-                <span>Responsable: <span className="font-medium">{training.trainerName}</span></span>
+                <span>Responsable: <span className="font-medium">{training.trainerName || 'A definir'}</span></span>
             </div>
             <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 text-muted-foreground"/>
@@ -131,3 +132,4 @@ export function TrainingCard({
     </Card>
   );
 }
+

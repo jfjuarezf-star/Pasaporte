@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useFormStatus } from 'react-dom';
 import React, { useState, useEffect, useRef, useTransition, useActionState, useMemo } from 'react';
@@ -116,10 +117,12 @@ function AssignTrainingDialog({
   training,
   users,
   onAssignmentsChange,
+  leadershipUsers
 }: {
   training: TrainingWithAssignments;
   users: User[];
   onAssignmentsChange: () => void;
+  leadershipUsers: User[];
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -127,6 +130,7 @@ function AssignTrainingDialog({
   const [selectedCategories, setSelectedCategories] = useState<Set<UserCategory>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
+  const [trainerName, setTrainerName] = useState<string>('');
 
 
   const filteredUsers = useMemo(() => {
@@ -145,6 +149,7 @@ function AssignTrainingDialog({
         setSelectedCategories(new Set());
         setSearchTerm('');
         setScheduledDate(undefined);
+        setTrainerName('');
     }
   }, [isOpen]);
 
@@ -153,7 +158,7 @@ function AssignTrainingDialog({
       const userIdsToAssign = Array.from(selectedUserIds).filter(id => !training.assignments.some(a => a.userId === id));
       if (userIdsToAssign.length === 0) return;
       
-      const result = await assignTrainingToUsers(training.id, userIdsToAssign, scheduledDate?.toISOString());
+      const result = await assignTrainingToUsers(training.id, userIdsToAssign, scheduledDate?.toISOString(), trainerName);
       if (result.success) {
         onAssignmentsChange();
         setIsOpen(false);
@@ -195,7 +200,7 @@ function AssignTrainingDialog({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" onClick={(e) => e.stopPropagation()}>
+        <Button variant="outline" size="sm" onClick={(e) => {e.stopPropagation(); setIsOpen(true)}}>
           Asignar
         </Button>
       </DialogTrigger>
@@ -203,37 +208,54 @@ function AssignTrainingDialog({
         <DialogHeader>
           <DialogTitle>Asignar: {training.title}</DialogTitle>
           <DialogDescription>
-            Selecciona usuarios y opcionalmente una fecha específica para esta asignación.
+            Selecciona usuarios, un responsable y una fecha opcional para esta asignación.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-             <div className="space-y-2">
-                <Label htmlFor="scheduledDate">Fecha Prevista (para esta asignación)</Label>
-                <Popover>
-                    <PopoverTrigger asChild>
-                        <Button
-                            variant={"outline"}
-                            className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !scheduledDate && "text-muted-foreground"
-                            )}
-                        >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {scheduledDate ? format(scheduledDate, "PPP", { locale: es }) : <span>Elegir fecha (opcional)</span>}
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                        <Calendar
-                            mode="single"
-                            selected={scheduledDate}
-                            onSelect={setScheduledDate}
-                            initialFocus
-                        />
-                    </PopoverContent>
-                </Popover>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="trainerName">Responsable de esta asignación</Label>
+                    <Select name="trainerName" value={trainerName} onValueChange={setTrainerName}>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Seleccionar responsable" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="Tercero">Tercero (Contratista)</SelectItem>
+                            {leadershipUsers.map(user => (
+                                <SelectItem key={user.id} value={user.name}>{user.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="scheduledDate">Fecha Prevista (opcional)</Label>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant={"outline"}
+                                className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !scheduledDate && "text-muted-foreground"
+                                )}
+                            >
+                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                {scheduledDate ? format(scheduledDate, "PPP", { locale: es }) : <span>Elegir fecha</span>}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                            <Calendar
+                                mode="single"
+                                selected={scheduledDate}
+                                onSelect={setScheduledDate}
+                                initialFocus
+                            />
+                        </PopoverContent>
+                    </Popover>
+                </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
             <div>
                 <h4 className="font-semibold mb-2">Por Categoría</h4>
                 <div className="space-y-2">
@@ -451,9 +473,9 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
   }, [initialUsers, currentUser]);
 
   const uniqueTrainers = useMemo(() => {
-    const trainers = new Set(initialTrainings.map(t => t.trainerName));
-    return Array.from(trainers);
-  }, [initialTrainings]);
+    const trainers = new Set(allAssignments.map(t => t.trainerName).filter(Boolean));
+    return Array.from(trainers) as string[];
+  }, [allAssignments]);
 
   const filteredUsers = useMemo(() => {
     return initialUsers.filter(user => 
@@ -467,7 +489,8 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
     return trainings.filter(training => {
         const titleMatch = titleSearch ? training.title.toLowerCase().includes(titleSearch.toLowerCase()) : true;
         const categoryMatch = categoryFilter !== 'all' ? training.category === categoryFilter : true;
-        const trainerMatch = trainerFilter !== 'all' ? training.trainerName === trainerFilter : true;
+        // Trainer filter now needs to check assignments
+        const trainerMatch = trainerFilter !== 'all' ? training.assignments.some(a => a.trainerName === trainerFilter) : true;
         return titleMatch && categoryMatch && trainerMatch;
     });
   }, [trainings, titleSearch, categoryFilter, trainerFilter]);
@@ -770,7 +793,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                 return (
                                 <Card key={training.id} className="p-4" onClick={() => handleTrainingClick(training)}>
                                     <p className="font-bold">{training.title}</p>
-                                    <p className="text-sm text-muted-foreground">Responsable: {training.trainerName}</p>
+                                    <p className="text-sm text-muted-foreground">Plantilla de capacitación</p>
                                     <div className="flex flex-wrap gap-2 my-2">
                                         <Badge variant="outline">{training.category}</Badge>
                                         <Badge variant={training.urgency === 'high' ? 'destructive' : 'secondary'}>{urgencyText[training.urgency]}</Badge>
@@ -783,7 +806,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                         <Button variant="outline" size="sm" onClick={(e) => {e.stopPropagation(); setSelectedTrainingToEdit(training);}}>
                                             <Pencil className="mr-2 h-4 w-4" /> Editar
                                         </Button>
-                                        <AssignTrainingDialog training={training} users={initialUsers} onAssignmentsChange={handleAssignmentsChange} />
+                                        <AssignTrainingDialog training={training} users={initialUsers} onAssignmentsChange={handleAssignmentsChange} leadershipUsers={leadershipUsers} />
                                         <DeleteTrainingDialog trainingId={training.id} trainingTitle={training.title} />
                                     </div>
                                 </Card>
@@ -794,7 +817,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Título</TableHead>
-                                    <TableHead>Responsable</TableHead>
+                                    <TableHead>Categoría</TableHead>
                                     <TableHead>Completados</TableHead>
                                     <TableHead className="text-right">Acción</TableHead>
                                 </TableRow>
@@ -806,7 +829,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                     return (
                                         <TableRow key={training.id} className="cursor-pointer" onClick={() => handleTrainingClick(training)}>
                                             <TableCell className="font-medium">{training.title}</TableCell>
-                                            <TableCell>{training.trainerName}</TableCell>
+                                            <TableCell>{training.category}</TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
                                                     <Users className="h-4 w-4 text-muted-foreground" />
@@ -818,7 +841,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                                   <Button variant="outline" size="sm" onClick={(e) => {e.stopPropagation(); setSelectedTrainingToEdit(training);}}>
                                                       <Pencil className="mr-2 h-3 w-3"/>Editar
                                                   </Button>
-                                                  <AssignTrainingDialog training={training} users={initialUsers} onAssignmentsChange={handleAssignmentsChange} />
+                                                  <AssignTrainingDialog training={training} users={initialUsers} onAssignmentsChange={handleAssignmentsChange} leadershipUsers={leadershipUsers} />
                                                   <DeleteTrainingDialog trainingId={training.id} trainingTitle={training.title} />
                                                 </div>
                                             </TableCell>
@@ -836,8 +859,8 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
             <div>
                 <Card>
                     <CardHeader>
-                        <CardTitle>Crear Nueva Capacitación</CardTitle>
-                        <CardDescription>Crea un nuevo documento en tu colección 'trainings'.</CardDescription>
+                        <CardTitle>Crear Plantilla de Capacitación</CardTitle>
+                        <CardDescription>Crea una plantilla reutilizable. El responsable y la fecha se asignan después.</CardDescription>
                     </CardHeader>
                     <form action={createTrainingAction} ref={createTrainingFormRef}>
                         <CardContent className="space-y-4">
@@ -870,21 +893,6 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                 {createTrainingState?.errors?.description && <p className="text-sm text-destructive">{createTrainingState.errors.description[0]}</p>}
                             </div>
                              <div className="space-y-2">
-                                <Label htmlFor="trainerName">Responsable</Label>
-                                <Select name="trainerName">
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Seleccionar responsable" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Tercero">Tercero (Contratista)</SelectItem>
-                                        {leadershipUsers.map(user => (
-                                            <SelectItem key={user.id} value={user.name}>{user.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                {createTrainingState?.errors?.trainerName && <p className="text-sm text-destructive">{createTrainingState.errors.trainerName[0]}</p>}
-                            </div>
-                             <div className="space-y-2">
                                 <Label htmlFor="duration">Duración (minutos)</Label>
                                 <Input id="duration" name="duration" type="number" required />
                                 {createTrainingState?.errors?.duration && <p className="text-sm text-destructive">{createTrainingState.errors.duration[0]}</p>}
@@ -912,7 +920,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                  {createTrainingState?.errors?.urgency && <p className="text-sm text-destructive">{createTrainingState.errors.urgency[0]}</p>}
                             </div>
                              <div className="flex items-center justify-between">
-                                <SubmitButton className="w-full"><FilePlus2 className="mr-2" /> Crear Capacitación</SubmitButton>
+                                <SubmitButton className="w-full"><FilePlus2 className="mr-2" /> Crear Plantilla</SubmitButton>
                             </div>
                         </CardContent>
                     </form>
@@ -1017,7 +1025,6 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
     {selectedTrainingToEdit && (
         <EditTrainingDialog 
             training={selectedTrainingToEdit}
-            leadershipUsers={leadershipUsers}
             isOpen={!!selectedTrainingToEdit}
             onOpenChange={(isOpen) => {
                 if (!isOpen) {

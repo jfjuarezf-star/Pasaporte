@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useMemo, useState } from 'react';
@@ -27,7 +28,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 
 interface ReportDashboardProps {
   users: User[];
-  trainings: Training[];
+  trainings: (Training & { assignments: Assignment[] })[];
   assignments: Assignment[];
 }
 
@@ -64,7 +65,7 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
 
   const {
     totalUsers,
-    overdueTrainings,
+    overdueAssignments,
     categoryCompletionData
   } = useMemo(() => {
     const now = new Date();
@@ -72,26 +73,18 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
     
     // Calculate Overdue Trainings
     const trainingsMap = new Map(trainings.map(t => [t.id, t]));
-    const overdueTrainingsMap = new Map<string, { training: Training, pendingCount: number, assignment: Assignment }>();
-
-    assignments.forEach(assignment => {
-      if (assignment.status === 'pending') {
-        const training = trainingsMap.get(assignment.trainingId);
-        if (training && assignment.scheduledDate && isBefore(new Date(assignment.scheduledDate), today)) {
-          const key = `${training.id}-${assignment.scheduledDate}`;
-          if (!overdueTrainingsMap.has(key)) {
-            overdueTrainingsMap.set(key, { training, pendingCount: 0, assignment });
-          }
-          overdueTrainingsMap.get(key)!.pendingCount++;
-        }
-      }
-    });
+    const overdueAssignments = assignments.filter(assignment => 
+        assignment.status === 'pending' &&
+        assignment.scheduledDate &&
+        isBefore(new Date(assignment.scheduledDate), today)
+    ).map(a => ({...a, training: trainingsMap.get(a.trainingId)})).filter(a => !!a.training);
 
     // Calculate progress by category
     const categoryStats: { [key in TrainingCategory]?: { total: number, completed: number } } = {};
+    const trainingsDataMap = new Map(trainings.map(t => [t.id, t]));
 
     assignments.forEach(assignment => {
-      const training = trainingsMap.get(assignment.trainingId);
+      const training = trainingsDataMap.get(assignment.trainingId);
       if (training) {
         if (!categoryStats[training.category]) {
           categoryStats[training.category] = { total: 0, completed: 0 };
@@ -111,7 +104,7 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
 
     return {
       totalUsers: users.length,
-      overdueTrainings: Array.from(overdueTrainingsMap.values()),
+      overdueAssignments,
       categoryCompletionData
     };
   }, [assignments, trainings, users]);
@@ -137,36 +130,29 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
       totalUsersTrained: trainedUserIds.size,
       percentageUsersTrained: totalUsers > 0 ? (trainedUserIds.size / totalUsers) * 100 : 0,
       totalHours: totalDurationMinutes / 60,
-      overdueCount: overdueTrainings.length,
+      overdueCount: overdueAssignments.length,
       completedCount,
     };
-  }, [assignments, trainings, totalUsers, overdueTrainings]);
+  }, [assignments, trainings, totalUsers, overdueAssignments]);
 
   const csvData = useMemo(() => {
      if (!users.length || !trainings.length || !assignments.length) return [];
     
     const trainingsMap = new Map(trainings.map(t => [t.id, t]));
+    const usersMap = new Map(users.map(u => [u.id, u]));
 
-    return users.flatMap(user => {
-      const userAssignments = assignments.filter(a => a.userId === user.id);
-      if (userAssignments.length === 0) {
-        return [{
-          userName: user.name, userEmail: user.email, trainingTitle: 'N/A', category: 'N/A', trainerName: 'N/A',
-          status: 'Sin asignaciones', assignedDate: 'N/A', completionDate: 'N/A', scheduledDate: 'N/A',
-        }];
-      }
-      return userAssignments.map(assignment => {
+    return assignments.map(assignment => {
         const training = trainingsMap.get(assignment.trainingId);
+        const user = usersMap.get(assignment.userId);
         return {
-          userName: user.name, userEmail: user.email,
+          userName: user?.name || 'N/A', userEmail: user?.email || 'N/A', 
           trainingTitle: training?.title || 'N/A', category: training?.category || 'N/A',
-          trainerName: training?.trainerName || 'N/A',
+          trainerName: assignment.trainerName || 'N/A',
           status: assignment.status === 'completed' ? 'Completado' : 'Pendiente',
           assignedDate: assignment.assignedDate ? format(new Date(assignment.assignedDate), 'yyyy-MM-dd') : 'N/A',
           completionDate: assignment.completedDate ? format(new Date(assignment.completedDate), 'yyyy-MM-dd') : 'N/A',
           scheduledDate: assignment.scheduledDate ? format(new Date(assignment.scheduledDate), 'yyyy-MM-dd') : 'N/A',
         };
-      });
     });
   }, [users, trainings, assignments]);
 
@@ -261,23 +247,21 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
               </CardDescription>
           </CardHeader>
           <CardContent>
-              {overdueTrainings.length > 0 ? (
+              {overdueAssignments.length > 0 ? (
                   <Table>
                       <TableHeader>
                           <TableRow>
                               <TableHead>Capacitación</TableHead>
                               <TableHead>Responsable</TableHead>
                               <TableHead>Fecha Programada</TableHead>
-                              <TableHead className="text-center">Participantes Pendientes</TableHead>
                           </TableRow>
                       </TableHeader>
                       <TableBody>
-                          {overdueTrainings.map(({ training, pendingCount, assignment }) => (
+                          {overdueAssignments.map((assignment) => (
                               <TableRow key={assignment.id} className="bg-destructive/10">
-                                  <TableCell className="font-medium">{training.title}</TableCell>
-                                  <TableCell>{training.trainerName}</TableCell>
+                                  <TableCell className="font-medium">{assignment.training?.title}</TableCell>
+                                  <TableCell>{assignment.trainerName}</TableCell>
                                   <TableCell>{format(new Date(assignment.scheduledDate!), 'PPP', { locale: es })}</TableCell>
-                                  <TableCell className="text-center font-bold text-lg">{pendingCount}</TableCell>
                               </TableRow>
                           ))}
                       </TableBody>
@@ -320,7 +304,7 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
              <CardDescription>
                   Estado general de todas las asignaciones (completadas vs. pendientes).
               </CardDescription>
-          </CardHeader>
+          </Header>
           <CardContent>
             <ResponsiveContainer width="100%" height={350}>
               <PieChart>
@@ -389,7 +373,7 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
                                 <TableRow key={assignment.id}>
                                     <TableCell>{format(new Date(assignment.scheduledDate!), 'PPP', { locale: es })}</TableCell>
                                     <TableCell>{assignment.training!.title}</TableCell>
-                                    <TableCell>{assignment.training!.trainerName}</TableCell>
+                                    <TableCell>{assignment.trainerName}</TableCell>
                                     <TableCell><div className='text-left'><span className='px-2 py-1 text-xs rounded-full border bg-muted'>{assignment.training!.category}</span></div></TableCell>
                                 </TableRow>
                             ))}
@@ -408,3 +392,4 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
     </div>
   );
 }
+

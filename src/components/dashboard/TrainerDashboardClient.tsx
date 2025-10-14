@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useTransition, useMemo } from 'react';
@@ -129,6 +130,7 @@ export function TrainerDashboardClient({ initialTrainings }: TrainerDashboardCli
                 {filteredTrainings.map(training => {
                     const pendingCount = training.assignments.filter(a => a.status === 'pending').length;
                     const completedCount = training.assignments.filter(a => a.status === 'completed').length;
+                    const mainTrainer = training.assignments.length > 0 ? training.assignments[0].trainerName : 'N/A';
 
                     return (
                         <AccordionItem value={training.id} key={training.id} className="border-none">
@@ -138,7 +140,7 @@ export function TrainerDashboardClient({ initialTrainings }: TrainerDashboardCli
                                         <div className='text-left'>
                                             <h3 className="font-semibold text-lg">{training.title}</h3>
                                             <p className="text-sm text-muted-foreground">
-                                                Responsable: {training.trainerName}
+                                                ID: {training.id}
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-4 mt-2 sm:mt-0">
@@ -154,13 +156,14 @@ export function TrainerDashboardClient({ initialTrainings }: TrainerDashboardCli
                                                 <TableRow>
                                                     <TableHead className='w-[60px]'></TableHead>
                                                     <TableHead>Participante</TableHead>
+                                                    <TableHead>Responsable</TableHead>
                                                     <TableHead>Fecha Programada</TableHead>
                                                     <TableHead>Estado</TableHead>
                                                     <TableHead className="text-right">Acción</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {training.assignments.map(({ id, user, status, scheduledDate }) => (
+                                                {training.assignments.map(({ id, user, status, scheduledDate, trainerName }) => (
                                                     <TableRow key={id}>
                                                         <TableCell>
                                                             <Avatar className='h-8 w-8'>
@@ -169,6 +172,7 @@ export function TrainerDashboardClient({ initialTrainings }: TrainerDashboardCli
                                                             </Avatar>
                                                         </TableCell>
                                                         <TableCell className="font-medium">{user?.name || 'Usuario no encontrado'}</TableCell>
+                                                        <TableCell>{trainerName || 'N/A'}</TableCell>
                                                         <TableCell>{scheduledDate ? format(new Date(scheduledDate), 'PPP', { locale: es }) : 'N/A'}</TableCell>
                                                         <TableCell>
                                                             {status === 'completed' ? (
@@ -199,3 +203,4 @@ export function TrainerDashboardClient({ initialTrainings }: TrainerDashboardCli
         </div>
     );
 }
+

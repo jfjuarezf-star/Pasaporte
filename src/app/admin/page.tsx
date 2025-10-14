@@ -1,4 +1,5 @@
 
+
 import { getAllUsers, getAllTrainings, getAllAssignments, getUserById, getTrainingsByTrainerName, getAssignmentsForTraining } from '@/lib/data';
 import { AdminPageClient } from '@/components/admin/AdminPageClient';
 import { User, Training, Assignment } from '@/lib/types';
@@ -40,22 +41,27 @@ export default async function AdminPage() {
 
     const usersMap = new Map(users.map(u => [u.id, u]));
 
+    const trainerName = currentUser.name;
+
     // Data for Trainer Dashboard view (if admin is also a trainer)
-    const trainerOfTrainings = await getTrainingsByTrainerName(currentUser.name);
-    const populatedTrainerTrainings: PopulatedTraining[] = await Promise.all(
-        trainerOfTrainings.map(async (training) => {
-            const assignments = await getAssignmentsForTraining(training.id);
-            const populatedAssignments = assignments.map(assignment => ({
-                ...assignment,
-                user: usersMap.get(assignment.userId)
-            }));
-            
-            return {
-                ...training,
-                assignments: populatedAssignments,
-            };
-        })
-    );
+    const trainerAssignments = allAssignments.filter(a => a.trainerName === trainerName);
+    const trainerTrainingsMap = new Map<string, PopulatedTraining>();
+
+    for (const assignment of trainerAssignments) {
+        const trainingDetails = trainingsData.find(t => t.id === assignment.trainingId);
+        if (trainingDetails) {
+            if (!trainerTrainingsMap.has(trainingDetails.id)) {
+                trainerTrainingsMap.set(trainingDetails.id, {
+                    ...trainingDetails,
+                    assignments: [],
+                });
+            }
+            const user = usersMap.get(assignment.userId);
+            trainerTrainingsMap.get(trainingDetails.id)!.assignments.push({ ...assignment, user });
+        }
+    }
+    const populatedTrainerTrainings = Array.from(trainerTrainingsMap.values());
+
 
     // Data for RRHH view (all trainings with participants)
     const allPopulatedTrainings: PopulatedTraining[] = trainingsData.map(training => {
@@ -88,3 +94,4 @@ export default async function AdminPage() {
         </div>
     );
 }
+

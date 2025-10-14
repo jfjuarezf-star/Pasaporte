@@ -1,8 +1,9 @@
 
+
 import { redirect } from "next/navigation";
 import { Header } from "@/components/dashboard/Header";
 import { getCurrentUserId } from "@/lib/auth";
-import { getTrainingsByTrainerName, getUserById } from "@/lib/data";
+import { getTrainingsByTrainerName, getUserById, getAssignmentsForUser } from "@/lib/data";
 
 export const dynamic = 'force-dynamic';
 
@@ -27,9 +28,9 @@ export default async function DashboardLayout({
     return redirect("/");
   }
 
-  // Check if the user is a trainer for any training
-  const trainerOfTrainings = await getTrainingsByTrainerName(user.name);
-  const isTrainer = trainerOfTrainings.length > 0;
+  // Check if the user is a trainer for any assignment
+  const userAssignments = await getAssignmentsForUser(user.id);
+  const isTrainer = userAssignments.some(a => a.trainerName === user.name);
 
   return (
     <div className="flex min-h-screen w-full flex-col">
@@ -38,3 +39,4 @@ export default async function DashboardLayout({
     </div>
   );
 }
+

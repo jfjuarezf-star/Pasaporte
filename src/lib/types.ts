@@ -1,4 +1,5 @@
 
+
 export type TrainingCategory = 'Seguridad' | 'Calidad' | 'DPO' | 'TPM' | 'Medio Ambiente' | 'Mejora Enfocada' | 'Obligatoria';
 export type TrainingStatus = 'completed' | 'pending';
 export type TrainingUrgency = 'high' | 'medium' | 'low';
@@ -20,9 +21,10 @@ export type Assignment = {
   userId: string;
   trainingId: string;
   status: TrainingStatus;
+  trainerName?: string; // Name of the person giving the training FOR THIS ASSIGNMENT
   assignedDate?: string; // ISO date string when status is 'pending'
   completedDate?: string; // ISO date string when status is 'completed'
-  scheduledDate?: string; // ISO date string for when the training is planned for this specific user
+  scheduledDate?: string; // ISO date string for when the training is planned FOR THIS ASSIGNMENT
 };
 
 // This is the shape of data passed to the TrainingCard
@@ -47,5 +49,5 @@ export type Training = {
   category: TrainingCategory;
   urgency: TrainingUrgency;
   duration?: number; // Duration in minutes
-  trainerName: string; // Name of the person giving the training
 };
+

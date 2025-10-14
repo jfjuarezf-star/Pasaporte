@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -136,7 +137,6 @@ export async function createTraining(prevState: any, formData: FormData) {
         category: formData.get('category'),
         urgency: formData.get('urgency'),
         duration: formData.get('duration'),
-        trainerName: formData.get('trainerName'),
     });
 
     if (!validatedFields.success) {
@@ -153,7 +153,6 @@ export async function createTraining(prevState: any, formData: FormData) {
             category: validatedFields.data.category as Training['category'],
             urgency: validatedFields.data.urgency as Training['urgency'],
             duration: validatedFields.data.duration,
-            trainerName: validatedFields.data.trainerName,
         });
         revalidatePath('/admin');
         return { success: true, message: 'Capacitación creada exitosamente.', errors: {} };
@@ -173,7 +172,6 @@ export async function updateTraining(prevState: any, formData: FormData) {
         category: formData.get('category'),
         urgency: formData.get('urgency'),
         duration: formData.get('duration'),
-        trainerName: formData.get('trainerName'),
     });
 
     if (!validatedFields.success) {
@@ -190,7 +188,6 @@ export async function updateTraining(prevState: any, formData: FormData) {
             category: validatedFields.data.category as Training['category'],
             urgency: validatedFields.data.urgency as Training['urgency'],
             duration: validatedFields.data.duration,
-            trainerName: validatedFields.data.trainerName,
         });
         revalidatePath('/admin');
         return { success: true, message: 'Capacitación actualizada exitosamente.', errors: {} };
@@ -200,9 +197,9 @@ export async function updateTraining(prevState: any, formData: FormData) {
 }
 
 
-export async function assignTrainingToUser(trainingId: string, userId: string, scheduledDate?: string) {
+export async function assignTrainingToUser(trainingId: string, userId: string, scheduledDate?: string, trainerName?: string) {
     try {
-        await assignTrainingToUserData(trainingId, userId, scheduledDate);
+        await assignTrainingToUserData(trainingId, userId, scheduledDate, trainerName);
         revalidatePath('/admin');
         return { success: true, message: 'Asignación exitosa.' };
     } catch (error) {
@@ -210,12 +207,12 @@ export async function assignTrainingToUser(trainingId: string, userId: string, s
     }
 }
 
-export async function assignTrainingToUsers(trainingId: string, userIds: string[], scheduledDate?: string) {
+export async function assignTrainingToUsers(trainingId: string, userIds: string[], scheduledDate?: string, trainerName?: string) {
     if (!userIds || userIds.length === 0) {
         return { success: false, message: 'No se seleccionaron usuarios.' };
     }
     try {
-        await assignTrainingToUsersData(trainingId, userIds, scheduledDate);
+        await assignTrainingToUsersData(trainingId, userIds, scheduledDate, trainerName);
         revalidatePath('/admin');
         return { success: true, message: 'Asignación masiva exitosa.' };
     } catch (error) {
@@ -262,3 +259,4 @@ export async function promoteUser(userId: string) {
         return { success: false, message: 'Error al promover al usuario.' };
     }
 }
+
