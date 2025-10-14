@@ -36,7 +36,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import type { User, Training, Assignment, PopulatedAssignment, TrainingUrgency, TrainingCategory, UserCategory } from '@/lib/types';
+import type { User, Training, Assignment, PopulatedAssignment, TrainingUrgency, TrainingCategory, UserCategory, PopulatedTrainingWithUsers } from '@/lib/types';
 import { createUser, createTraining, promoteUser, assignTrainingToUsers, deleteTraining, deleteUser } from '@/app/admin-actions';
 import { FilePlus2, Loader2, UserPlus, Shield, Check, Users, Trash2, UserX, AlertCircle, Database, Calendar as CalendarIcon, Search, Pencil, BookUser, Briefcase, Edit } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -71,6 +71,7 @@ import { Calendar } from '../ui/calendar';
 import { EditTrainingDialog } from './EditTrainingDialog';
 import { TrainerDashboardClient } from '../dashboard/TrainerDashboardClient';
 import { EditUserDialog } from './EditUserDialog';
+import { TrainingUsersDialog } from './TrainingUsersDialog';
 
 const USER_CATEGORIES: UserCategory[] = ['Supervisión', 'Ingresantes', 'Operaciones', 'Línea de Mando (FC)', 'Terceros', 'Mantenimiento', 'Brigadistas', 'RRHH'];
 const TRAINING_CATEGORIES: TrainingCategory[] = ['Seguridad', 'Calidad', 'DPO', 'TPM', 'Medio Ambiente', 'Mejora Enfocada', 'Obligatoria'];
@@ -190,7 +191,7 @@ function AssignTrainingDialog({
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button variant="outline" size="sm" onClick={(e) => e.stopPropagation()}>
           Asignar
         </Button>
       </DialogTrigger>
@@ -311,7 +312,7 @@ function DeleteTrainingDialog({ trainingId, trainingTitle }: { trainingId: strin
     return (
         <AlertDialog>
             <AlertDialogTrigger asChild>
-                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={(e) => e.stopPropagation()}>
                     <Trash2 className="h-4 w-4" />
                 </Button>
             </AlertDialogTrigger>
@@ -394,6 +395,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
   const [selectedUserForDetails, setSelectedUserForDetails] = useState<User | null>(null);
   const [selectedUserForEdit, setSelectedUserForEdit] = useState<User | null>(null);
   const [selectedTrainingToEdit, setSelectedTrainingToEdit] = useState<TrainingWithAssignments | null>(null);
+  const [selectedTrainingForUsers, setSelectedTrainingForUsers] = useState<PopulatedTrainingWithUsers | null>(null);
 
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
 
@@ -447,8 +449,12 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
 
   const handleAssignmentStatusChange = (assignmentId: string, isCompleted: boolean) => {
     setAssignments(prevAssignments => prevAssignments.map(a => 
-      a.id === assignmentId ? { ...a, status: isCompleted ? 'completed' : 'pending' } : a
+      a.id === assignmentId ? { ...a, status: isCompleted ? 'completed' : 'pending', completedDate: isCompleted ? new Date().toISOString() : null } : a
     ));
+    setAllPopulatedTrainings(prev => prev.map(t => ({
+        ...t,
+        assignments: t.assignments.map(a => a.id === assignmentId ? { ...a, status: isCompleted ? 'completed' : 'pending', completedDate: isCompleted ? new Date().toISOString() : null } : a)
+    })));
   }
   
   useEffect(() => {
@@ -487,6 +493,20 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
     }).filter(a => a.id); // Filter out assignments where training might have been deleted
   }
 
+  const handleTrainingClick = (training: TrainingWithAssignments) => {
+    const usersMap = new Map(initialUsers.map(u => [u.id, u]));
+    const assignmentsForTraining = assignments.filter(a => a.trainingId === training.id);
+    const populatedParticipants = assignmentsForTraining.map(assignment => ({
+        ...assignment,
+        user: usersMap.get(assignment.userId)
+    }));
+
+    setSelectedTrainingForUsers({
+        ...training,
+        participants: populatedParticipants,
+    });
+  }
+
   const canSeeDataExplorer = currentUser.email === 'jfjuarezf@ccu.com.ar';
   const isTrainer = trainerTrainings.length > 0;
   const isRRHH = currentUser.categories?.includes('RRHH');
@@ -515,7 +535,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
   return (
     <>
     <Tabs defaultValue="users" className="w-full">
-      <TabsList className="flex-wrap h-auto justify-start">
+      <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:flex lg:flex-wrap h-auto justify-start">
         {visibleTabs.map(tab => (
              <TabsTrigger key={tab.value} value={tab.value}>
                 {tab.icon && <tab.icon className="mr-2 h-4 w-4" />}
@@ -714,7 +734,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                 const completedCount = assignments.filter(a => a.trainingId === training.id && a.status === 'completed').length;
                                 const totalAssignments = assignments.filter(a => a.trainingId === training.id).length;
                                 return (
-                                <Card key={training.id} className="p-4">
+                                <Card key={training.id} className="p-4" onClick={() => handleTrainingClick(training)}>
                                     <p className="font-bold">{training.title}</p>
                                     <p className="text-sm text-muted-foreground">Responsable: {training.trainerName}</p>
                                     {training.scheduledDate && <p className="text-sm text-muted-foreground">Fecha: {format(new Date(training.scheduledDate), 'PPP')}</p>}
@@ -727,7 +747,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                         </Badge>
                                     </div>
                                     <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t">
-                                        <Button variant="outline" size="sm" onClick={() => setSelectedTrainingToEdit(training)}>
+                                        <Button variant="outline" size="sm" onClick={(e) => {e.stopPropagation(); setSelectedTrainingToEdit(training);}}>
                                             <Pencil className="mr-2 h-4 w-4" /> Editar
                                         </Button>
                                         <AssignTrainingDialog training={training} users={initialUsers} onAssignmentsChange={handleAssignmentsChange} />
@@ -752,7 +772,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                     const completedCount = assignments.filter(a => a.trainingId === training.id && a.status === 'completed').length;
                                     const totalAssignments = assignments.filter(a => a.trainingId === training.id).length;
                                     return (
-                                        <TableRow key={training.id}>
+                                        <TableRow key={training.id} className="cursor-pointer" onClick={() => handleTrainingClick(training)}>
                                             <TableCell className="font-medium">{training.title}</TableCell>
                                             <TableCell>{training.trainerName}</TableCell>
                                             <TableCell>
@@ -766,7 +786,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex items-center justify-end gap-2">
-                                                  <Button variant="outline" size="sm" onClick={() => setSelectedTrainingToEdit(training)}>
+                                                  <Button variant="outline" size="sm" onClick={(e) => {e.stopPropagation(); setSelectedTrainingToEdit(training);}}>
                                                       <Pencil className="mr-2 h-3 w-3"/>Editar
                                                   </Button>
                                                   <AssignTrainingDialog training={training} users={initialUsers} onAssignmentsChange={handleAssignmentsChange} />
@@ -1003,8 +1023,23 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
             }}
         />
     )}
+
+    {selectedTrainingForUsers && (
+        <TrainingUsersDialog 
+            training={selectedTrainingForUsers}
+            isOpen={!!selectedTrainingForUsers}
+            onOpenChange={(isOpen) => {
+                if (!isOpen) {
+                    setSelectedTrainingForUsers(null);
+                }
+            }}
+            onAssignmentStatusChange={handleAssignmentStatusChange}
+        />
+    )}
     </>
   );
 }
+
+    
 
     

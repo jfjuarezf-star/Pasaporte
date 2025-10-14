@@ -42,3 +42,14 @@ export type PopulatedAssignment = Training & {
   assignedDate?: string;
   completedDate?: string;
 };
+
+// Used for the Training -> Users dialog
+export type Participant = Assignment & {
+    user?: User | null;
+}
+
+export type PopulatedTrainingWithUsers = Training & {
+    participants: Participant[];
+}
+
+    
