@@ -12,6 +12,7 @@ import {
   updateUserData,
   promoteUser as promoteUserData,
   findUserByEmail,
+  findUserByUsername,
   assignTrainingToUser,
   updateTraining as updateTrainingData,
 } from '@/lib/data';
@@ -21,6 +22,7 @@ import { getCurrentUserId } from '@/lib/auth';
 export async function createUser(prevState: any, formData: FormData) {
     const validatedFields = CreateUserSchema.safeParse({
         name: formData.get('name'),
+        username: formData.get('username'),
         email: formData.get('email'),
         password: formData.get('password'),
         role: formData.get('role'),
@@ -35,21 +37,32 @@ export async function createUser(prevState: any, formData: FormData) {
     }
     
     try {
-        const existingUser = await findUserByEmail(validatedFields.data.email);
-        if (existingUser) {
+        const existingUsername = await findUserByUsername(validatedFields.data.username);
+        if (existingUsername) {
             return {
-                errors: { email: ['Este correo electrónico ya está en uso.'] },
+                errors: { username: ['Este nombre de usuario ya está en uso.'] },
                 message: 'Error al crear el usuario.',
             };
         }
 
-        await createUserData(
-            validatedFields.data.name, 
-            validatedFields.data.email, 
-            validatedFields.data.password, 
-            validatedFields.data.role as 'user' | 'admin',
-            validatedFields.data.categories as UserCategory[]
-        );
+        if (validatedFields.data.email) {
+            const existingUserEmail = await findUserByEmail(validatedFields.data.email);
+            if (existingUserEmail) {
+                return {
+                    errors: { email: ['Este correo electrónico ya está en uso.'] },
+                    message: 'Error al crear el usuario.',
+                };
+            }
+        }
+        
+        await createUserData({
+            name: validatedFields.data.name, 
+            username: validatedFields.data.username,
+            email: validatedFields.data.email,
+            password: validatedFields.data.password, 
+            role: validatedFields.data.role as 'user' | 'admin',
+            categories: validatedFields.data.categories as UserCategory[]
+        });
         revalidatePath('/admin');
         return { success: true, message: `Usuario creado con la contraseña: ${validatedFields.data.password}. ¡Recuerda compartirla!`, errors: {} };
     } catch (error: any) {
@@ -65,6 +78,7 @@ export async function updateUser(prevState: any, formData: FormData) {
 
     const validatedFields = UpdateUserSchema.safeParse({
         name: formData.get('name'),
+        username: formData.get('username'),
         email: formData.get('email'),
         role: formData.get('role'),
         categories: formData.getAll('categories'),
@@ -79,17 +93,29 @@ export async function updateUser(prevState: any, formData: FormData) {
     }
     
     try {
-        const existingUser = await findUserByEmail(validatedFields.data.email);
-        if (existingUser && existingUser.id !== userId) {
+        const existingUsername = await findUserByUsername(validatedFields.data.username);
+        if (existingUsername && existingUsername.id !== userId) {
             return {
-                errors: { email: ['Este correo electrónico ya está en uso por otro usuario.'] },
+                errors: { username: ['Este nombre de usuario ya está en uso por otro usuario.'] },
                 message: 'Error al actualizar el usuario.',
                 success: false,
             };
         }
+        
+        if (validatedFields.data.email) {
+            const existingUserEmail = await findUserByEmail(validatedFields.data.email);
+            if (existingUserEmail && existingUserEmail.id !== userId) {
+                return {
+                    errors: { email: ['Este correo electrónico ya está en uso por otro usuario.'] },
+                    message: 'Error al actualizar el usuario.',
+                    success: false,
+                };
+            }
+        }
 
         await updateUserData(userId, {
             name: validatedFields.data.name,
+            username: validatedFields.data.username,
             email: validatedFields.data.email,
             role: validatedFields.data.role as 'user' | 'admin',
             categories: validatedFields.data.categories as UserCategory[],

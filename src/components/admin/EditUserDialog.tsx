@@ -106,13 +106,18 @@ export function EditUserDialog({
                 </Alert>
              )}
             <div className="space-y-2">
-                <Label htmlFor="name">Nombre de Usuario / Completo</Label>
+                <Label htmlFor="name">Nombre Completo</Label>
                 <Input id="name" name="name" required defaultValue={user.name} />
                 {state?.errors?.name && <p className="text-sm text-destructive">{state.errors.name[0]}</p>}
             </div>
+             <div className="space-y-2">
+                <Label htmlFor="username">Nombre de Usuario</Label>
+                <Input id="username" name="username" required defaultValue={user.username} />
+                {state?.errors?.username && <p className="text-sm text-destructive">{state.errors.username[0]}</p>}
+            </div>
             <div className="space-y-2">
-                <Label htmlFor="email">Correo Electrónico</Label>
-                <Input id="email" name="email" type="email" required defaultValue={user.email} />
+                <Label htmlFor="email">Correo Electrónico (opcional para usuarios, obligatorio para admins)</Label>
+                <Input id="email" name="email" type="email" defaultValue={user.email} />
                 {state?.errors?.email && <p className="text-sm text-destructive">{state.errors.email[0]}</p>}
             </div>
             <div className="space-y-2">

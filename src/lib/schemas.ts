@@ -3,18 +3,37 @@ import { z } from 'zod';
 const userCategories = z.enum(['Supervisión', 'Ingresantes', 'Operaciones', 'Línea de Mando (FC)', 'Terceros', 'Mantenimiento', 'Brigadistas', 'RRHH']);
 
 export const CreateUserSchema = z.object({
-  name: z.string().min(3, { message: 'El nombre debe tener al menos 3 caracteres.' }),
-  email: z.string().email({ message: 'Por favor, introduce un correo válido.' }),
+  name: z.string().min(3, { message: 'El nombre completo debe tener al menos 3 caracteres.' }),
+  username: z.string().min(3, { message: 'El nombre de usuario debe tener al menos 3 caracteres.' }).regex(/^[a-zA-Z0-9_]+$/, { message: 'El nombre de usuario solo puede contener letras, números y guiones bajos.'}),
+  email: z.string().email({ message: 'Por favor, introduce un correo válido.' }).optional().or(z.literal('')),
   password: z.string().min(4, { message: 'La contraseña debe tener al menos 4 caracteres.' }),
   role: z.enum(['user', 'admin']),
   categories: z.array(userCategories).optional(),
+}).refine(data => {
+    if (data.role === 'admin' && !data.email) {
+        return false;
+    }
+    return true;
+}, {
+    message: "El correo electrónico es obligatorio para los administradores.",
+    path: ["email"],
 });
 
+
 export const UpdateUserSchema = z.object({
-  name: z.string().min(3, { message: 'El nombre debe tener al menos 3 caracteres.' }),
-  email: z.string().email({ message: 'Por favor, introduce un correo válido.' }),
+  name: z.string().min(3, { message: 'El nombre completo debe tener al menos 3 caracteres.' }),
+  username: z.string().min(3, { message: 'El nombre de usuario debe tener al menos 3 caracteres.' }).regex(/^[a-zA-Z0-9_]+$/, { message: 'El nombre de usuario solo puede contener letras, números y guiones bajos.'}),
+  email: z.string().email({ message: 'Por favor, introduce un correo válido.' }).optional().or(z.literal('')),
   role: z.enum(['user', 'admin']),
   categories: z.array(userCategories).optional(),
+}).refine(data => {
+    if (data.role === 'admin' && !data.email) {
+        return false;
+    }
+    return true;
+}, {
+    message: "El correo electrónico es obligatorio para los administradores.",
+    path: ["email"],
 });
 
 

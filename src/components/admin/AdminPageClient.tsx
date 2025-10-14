@@ -428,7 +428,8 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
   const filteredUsers = useMemo(() => {
     return initialUsers.filter(user => 
         user.name.toLowerCase().includes(userSearch.toLowerCase()) ||
-        user.email.toLowerCase().includes(userSearch.toLowerCase())
+        (user.username && user.username.toLowerCase().includes(userSearch.toLowerCase())) ||
+        (user.email && user.email.toLowerCase().includes(userSearch.toLowerCase()))
     );
   }, [initialUsers, userSearch]);
 
@@ -553,7 +554,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                         <div className="relative pt-4">
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input 
-                                placeholder="Buscar por nombre o email..."
+                                placeholder="Buscar por nombre, usuario o email..."
                                 className="pl-8"
                                 value={userSearch}
                                 onChange={(e) => setUserSearch(e.target.value)}
@@ -567,7 +568,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                     <div className="flex justify-between items-start">
                                         <div>
                                             <p className="font-bold">{user.name}</p>
-                                            <p className="text-sm text-muted-foreground">{user.email}</p>
+                                            <p className="text-sm text-muted-foreground">{user.username}</p>
                                         </div>
                                         {user.role === 'admin' ? 
                                             <Badge variant="secondary"><Shield className="mr-1 h-3 w-3" /> Admin</Badge> 
@@ -589,7 +590,8 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                         <Table className="hidden md:table">
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Nombre</TableHead>
+                                    <TableHead>Nombre Completo</TableHead>
+                                    <TableHead>Username</TableHead>
                                     <TableHead>Email</TableHead>
                                     <TableHead>Categorías</TableHead>
                                     <TableHead>Rol</TableHead>
@@ -600,6 +602,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                 {(filteredUsers || []).map((user) => (
                                 <TableRow key={user.id}>
                                     <TableCell className="font-medium cursor-pointer" onClick={() => setSelectedUserForDetails(user)}>{user.name}</TableCell>
+                                    <TableCell className="font-medium cursor-pointer" onClick={() => setSelectedUserForDetails(user)}>{user.username}</TableCell>
                                     <TableCell className="cursor-pointer" onClick={() => setSelectedUserForDetails(user)}>{user.email}</TableCell>
                                     <TableCell className="cursor-pointer" onClick={() => setSelectedUserForDetails(user)}>
                                         <div className="flex flex-wrap gap-1">
@@ -647,13 +650,18 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                             </Alert>
                          )}
                         <div className="space-y-2">
-                            <Label htmlFor="name">Nombre de Usuario / Completo</Label>
+                            <Label htmlFor="name">Nombre Completo</Label>
                             <Input id="name" name="name" required />
                             {createUserState?.errors?.name && <p className="text-sm text-destructive">{createUserState.errors.name[0]}</p>}
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="email">Correo Electrónico</Label>
-                            <Input id="email" name="email" type="email" required />
+                            <Label htmlFor="username">Nombre de Usuario (para login)</Label>
+                            <Input id="username" name="username" required />
+                            {createUserState?.errors?.username && <p className="text-sm text-destructive">{createUserState.errors.username[0]}</p>}
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="email">Correo Electrónico (opcional para usuarios, obligatorio para admins)</Label>
+                            <Input id="email" name="email" type="email" />
                              {createUserState?.errors?.email && <p className="text-sm text-destructive">{createUserState.errors.email[0]}</p>}
                         </div>
                          <div className="space-y-2">

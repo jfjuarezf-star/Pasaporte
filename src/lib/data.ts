@@ -17,48 +17,60 @@ function docToData<T>(doc: FirebaseFirestore.DocumentSnapshot): T {
 
 export const authenticateUser = async (identifier: string, pass: string): Promise<{ user: User | null, error?: string }> => {
   console.log("--- AUTHENTICATE USER: START ---");
+  const identifierLower = identifier.toLowerCase();
   
   try {
     const { db } = getFirebaseAdmin();
     
-    // Get all users and filter in memory to avoid query index issue.
-    // This is not scalable for a large number of users, but will unblock the app.
     const usersRef = db.collection('users');
-    const snapshot = await usersRef.get();
+    // Query for username OR email. Firestore doesn't support OR queries on different fields.
+    // We have to perform two separate queries.
+    const usernameQuery = usersRef.where('username', '==', identifierLower).get();
+    const emailQuery = usersRef.where('email', '==', identifierLower).get();
     
-    if (snapshot.empty) {
-        console.log("--- AUTHENTICATE USER: NO USERS FOUND IN COLLECTION ---");
-        // If no users exist, seed the first one
-        const initialPassword = "password"; 
-        const initialUser = {
-            name: 'Admin',
-            email: 'admin@example.com',
-            role: 'admin' as 'admin',
-            avatarUrl: 'https://placehold.co/100x100.png',
-            passwordHash: initialPassword, 
-            categories: ['Supervisión', 'Línea de Mando (FC)'] as UserCategory[],
-        };
-        // Use hardcoded admin credentials for the very first login if the DB is empty
-        if ((identifier.toLowerCase() === initialUser.email || identifier.toLowerCase() === initialUser.name.toLowerCase()) && pass === initialPassword) {
-            const docRef = await db.collection('users').add(initialUser);
-            console.log("Initial admin user created.");
-            const newUser = { ...initialUser, id: docRef.id };
-             // eslint-disable-next-line @typescript-eslint/no-unused-vars
-            const { passwordHash, ...userWithoutPassword } = newUser;
-            return { user: userWithoutPassword as User };
-        } else {
-            return { user: null, error: "Credenciales inválidas o el usuario no existe." };
+    const [usernameSnapshot, emailSnapshot] = await Promise.all([usernameQuery, emailQuery]);
+
+    let userDoc: FirebaseFirestore.DocumentSnapshot | undefined;
+
+    if (!usernameSnapshot.empty) {
+        userDoc = usernameSnapshot.docs[0];
+    } else if (!emailSnapshot.empty) {
+        userDoc = emailSnapshot.docs[0];
+    }
+
+    if (!userDoc) {
+        const snapshot = await usersRef.get();
+        if (snapshot.empty) {
+            console.log("--- AUTHENTICATE USER: NO USERS FOUND IN COLLECTION, SEEDING ADMIN ---");
+            const initialPassword = "password"; 
+            const initialUser = {
+                name: 'Admin',
+                username: 'admin',
+                email: 'admin@example.com',
+                role: 'admin' as 'admin',
+                avatarUrl: 'https://placehold.co/100x100.png',
+                passwordHash: initialPassword, 
+                categories: ['Supervisión', 'Línea de Mando (FC)'] as UserCategory[],
+            };
+            if (identifierLower === initialUser.email || identifierLower === initialUser.username) {
+                 if(pass === initialPassword) {
+                    const docRef = await db.collection('users').add(initialUser);
+                    console.log("Initial admin user created.");
+                    const newUser = { ...initialUser, id: docRef.id };
+                    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                    const { passwordHash, ...userWithoutPassword } = newUser;
+                    return { user: userWithoutPassword as User };
+                 }
+            }
+             return { user: null, error: "Credenciales inválidas o el usuario no existe." };
         }
-    }
 
-    const users = snapshot.docs.map(doc => docToData<User>(doc));
-    const user = users.find(u => u.email.toLowerCase() === identifier.toLowerCase() || u.name.toLowerCase() === identifier.toLowerCase());
-
-    if (!user) {
-      console.log("--- AUTHENTICATE USER: USER NOT FOUND ---");
-      return { user: null, error: "Credenciales inválidas o el usuario no existe." };
+        console.log("--- AUTHENTICATE USER: USER NOT FOUND ---");
+        return { user: null, error: "Credenciales inválidas o el usuario no existe." };
     }
     
+    const user = docToData<User>(userDoc);
+
     if (!user.passwordHash) {
        console.log("--- AUTHENTICATE USER: NO PASSWORD HASH ---");
        return { user: null, error: "El usuario no tiene una contraseña configurada." };
@@ -109,6 +121,7 @@ export const getUserById = async (userId: string): Promise<User | null> => {
 };
 
 export const findUserByEmail = async (email: string): Promise<User | null> => {
+    if (!email) return null;
     const { db } = getFirebaseAdmin();
     if (!db) return null;
 
@@ -122,28 +135,46 @@ export const findUserByEmail = async (email: string): Promise<User | null> => {
     return docToData<User>(querySnapshot.docs[0]);
 }
 
-export const createUser = async (name: string, email: string, password: string, role: 'admin' | 'user', categories: UserCategory[] = []): Promise<string> => {
+export const findUserByUsername = async (username: string): Promise<User | null> => {
+    const { db } = getFirebaseAdmin();
+    if (!db) return null;
+
+    const usersRef = db.collection('users');
+    const q = usersRef.where('username', '==', username.toLowerCase());
+    const querySnapshot = await q.get();
+
+    if (querySnapshot.empty) {
+        return null;
+    }
+    return docToData<User>(querySnapshot.docs[0]);
+}
+
+export const createUser = async (data: Omit<User, 'id' | 'avatarUrl' | 'passwordHash'> & { password?: string }): Promise<string> => {
     const { db } = getFirebaseAdmin();
     if (!db) throw new Error("Database not initialized for createUser.");
 
     const newUser = {
-        name,
-        email: email.toLowerCase(),
-        role,
+        ...data,
+        username: data.username.toLowerCase(),
+        email: data.email ? data.email.toLowerCase() : '',
         avatarUrl: 'https://placehold.co/100x100.png',
-        passwordHash: password,
-        categories: categories,
+        passwordHash: data.password,
     };
     const docRef = await db.collection('users').add(newUser);
     return docRef.id;
 };
 
-export const updateUserData = async (userId: string, data: Partial<Pick<User, 'name' | 'email' | 'role' | 'categories'>>): Promise<void> => {
+export const updateUserData = async (userId: string, data: Partial<Pick<User, 'name' | 'username' | 'email' | 'role' | 'categories'>>): Promise<void> => {
     const { db } = getFirebaseAdmin();
     if (!db) throw new Error("Database not initialized for updateUserData.");
 
+    const updateData: Partial<User> = { ...data };
+    if(data.username) updateData.username = data.username.toLowerCase();
+    if(data.email) updateData.email = data.email.toLowerCase();
+
+
     const userRef = db.collection('users').doc(userId);
-    await userRef.update(data);
+    await userRef.update(updateData);
 };
 
 
@@ -371,13 +402,14 @@ export const getAllUsers = async (): Promise<User[]> => {
     if (!db) return [];
     
     try {
-        const usersSnap = await db.collection('users').get();
+        const usersSnap = await db.collection('users').orderBy('name').get();
         
         if (usersSnap.empty) {
             console.log("No users found. Seeding initial admin user...");
             const initialPassword = "password"; 
             const initialUser = {
                 name: 'Admin',
+                username: 'admin',
                 email: 'admin@example.com',
                 role: 'admin' as 'admin',
                 avatarUrl: 'https://placehold.co/100x100.png',
