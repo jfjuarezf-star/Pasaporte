@@ -414,7 +414,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
     });
     // Ensure currentUser is in the list if not already present
     const currentUserInList = initialUsers.find(u => u.id === currentUser.id);
-    if (currentUserInList) {
+    if (currentUserInList && !Array.from(leaders).some(l => l.id === currentUser.id)) {
         leaders.add(currentUserInList);
     }
     return Array.from(leaders);
@@ -647,7 +647,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                             </Alert>
                          )}
                         <div className="space-y-2">
-                            <Label htmlFor="name">Nombre de Usuario / Completo</Label>
+                            <Label htmlFor="name">Nombre Completo</Label>
                             <Input id="name" name="name" required />
                             {createUserState?.errors?.name && <p className="text-sm text-destructive">{createUserState.errors.name[0]}</p>}
                         </div>
