@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import React, { useMemo, useState } from 'react';
@@ -71,7 +70,6 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
     const now = new Date();
     const today = startOfDay(now);
     
-    // Calculate Overdue Trainings
     const trainingsMap = new Map(trainings.map(t => [t.id, t]));
     const overdueAssignments = assignments.filter(assignment => 
         assignment.status === 'pending' &&
@@ -79,7 +77,6 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
         isBefore(new Date(assignment.scheduledDate), today)
     ).map(a => ({...a, training: trainingsMap.get(a.trainingId)})).filter(a => !!a.training);
 
-    // Calculate progress by category
     const categoryStats: { [key in TrainingCategory]?: { total: number, completed: number } } = {};
     const trainingsDataMap = new Map(trainings.map(t => [t.id, t]));
 
@@ -122,7 +119,11 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
   
   const kpiData = useMemo(() => {
     const trainedUserIds = new Set(assignments.filter(a => a.status === 'completed').map(a => a.userId));
-    const totalDurationMinutes = trainings.reduce((acc, t) => acc + (t.duration || 0), 0);
+    
+    const totalDurationMinutes = assignments.reduce((acc, a) => {
+        const trainingDetails = trainings.find(t => t.id === a.trainingId);
+        return acc + (trainingDetails?.duration || 0);
+    }, 0);
     
     const completedCount = assignments.filter(a => a.status === 'completed').length;
 
@@ -145,13 +146,15 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
         const training = trainingsMap.get(assignment.trainingId);
         const user = usersMap.get(assignment.userId);
         return {
-          userName: user?.name || 'N/A', userEmail: user?.email || 'N/A', 
-          trainingTitle: training?.title || 'N/A', category: training?.category || 'N/A',
+          userName: user?.name || 'N/A', 
+          userEmail: user?.email || 'N/A', 
+          trainingTitle: training?.title || 'N/A', 
+          category: training?.category || 'N/A',
           trainerName: assignment.trainerName || 'N/A',
           status: assignment.status === 'completed' ? 'Completado' : 'Pendiente',
-          assignedDate: assignment.assignedDate ? format(new Date(assignment.assignedDate), 'yyyy-MM-dd') : 'N/A',
-          completionDate: assignment.completedDate ? format(new Date(assignment.completedDate), 'yyyy-MM-dd') : 'N/A',
-          scheduledDate: assignment.scheduledDate ? format(new Date(assignment.scheduledDate), 'yyyy-MM-dd') : 'N/A',
+          assignedDate: assignment.assignedDate ? format(new Date(assignment.assignedDate), 'yyyy-MM-dd', { locale: es }) : 'N/A',
+          completionDate: assignment.completedDate ? format(new Date(assignment.completedDate), 'yyyy-MM-dd', { locale: es }) : 'N/A',
+          scheduledDate: assignment.scheduledDate ? format(new Date(assignment.scheduledDate), 'yyyy-MM-dd', { locale: es }) : 'N/A',
         };
     });
   }, [users, trainings, assignments]);
@@ -392,4 +395,3 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
     </div>
   );
 }
-
