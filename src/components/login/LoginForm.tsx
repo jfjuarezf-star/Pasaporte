@@ -48,8 +48,8 @@ export function LoginForm() {
               </Alert>
             )}
             <div className="space-y-2">
-              <Label htmlFor="email" className="font-medium text-gray-700">Correo Electrónico</Label>
-              <Input id="email" name="email" type="email" placeholder="juan.perez@ccu.com.ar" required className="bg-white/50" defaultValue="admin@example.com" />
+              <Label htmlFor="identifier" className="font-medium text-gray-700">Nombre de Usuario o Correo</Label>
+              <Input id="identifier" name="identifier" type="text" placeholder="admin o admin@example.com" required className="bg-white/50" defaultValue="admin" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password"  className="font-medium text-gray-700">Contraseña</Label>

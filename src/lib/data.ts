@@ -15,7 +15,7 @@ function docToData<T>(doc: FirebaseFirestore.DocumentSnapshot): T {
 
 // --- USER FUNCTIONS ---
 
-export const authenticateUser = async (email: string, pass: string): Promise<{ user: User | null, error?: string }> => {
+export const authenticateUser = async (identifier: string, pass: string): Promise<{ user: User | null, error?: string }> => {
   console.log("--- AUTHENTICATE USER: START ---");
   
   try {
@@ -39,7 +39,7 @@ export const authenticateUser = async (email: string, pass: string): Promise<{ u
             categories: ['Supervisión', 'Línea de Mando (FC)'] as UserCategory[],
         };
         // Use hardcoded admin credentials for the very first login if the DB is empty
-        if (email.toLowerCase() === initialUser.email && pass === initialPassword) {
+        if ((identifier.toLowerCase() === initialUser.email || identifier.toLowerCase() === initialUser.name.toLowerCase()) && pass === initialPassword) {
             const docRef = await db.collection('users').add(initialUser);
             console.log("Initial admin user created.");
             const newUser = { ...initialUser, id: docRef.id };
@@ -52,7 +52,7 @@ export const authenticateUser = async (email: string, pass: string): Promise<{ u
     }
 
     const users = snapshot.docs.map(doc => docToData<User>(doc));
-    const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    const user = users.find(u => u.email.toLowerCase() === identifier.toLowerCase() || u.name.toLowerCase() === identifier.toLowerCase());
 
     if (!user) {
       console.log("--- AUTHENTICATE USER: USER NOT FOUND ---");
@@ -137,6 +137,15 @@ export const createUser = async (name: string, email: string, password: string, 
     const docRef = await db.collection('users').add(newUser);
     return docRef.id;
 };
+
+export const updateUserData = async (userId: string, data: Partial<Pick<User, 'name' | 'email' | 'role' | 'categories'>>): Promise<void> => {
+    const { db } = getFirebaseAdmin();
+    if (!db) throw new Error("Database not initialized for updateUserData.");
+
+    const userRef = db.collection('users').doc(userId);
+    await userRef.update(data);
+};
+
 
 export const promoteUser = async (userId: string): Promise<void> => {
     const { db } = getFirebaseAdmin();

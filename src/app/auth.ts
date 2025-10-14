@@ -7,17 +7,17 @@ import { authenticateUser } from '@/lib/data';
 import type { User } from '@/lib/types';
 
 export async function login(prevState: { message: string }, formData: FormData) {
-  const email = formData.get('email') as string;
+  const identifier = formData.get('identifier') as string;
   const password = formData.get('password') as string;
 
-  if (!email || !password) {
-    return { message: 'El correo y la contraseña son requeridos.' };
+  if (!identifier || !password) {
+    return { message: 'El nombre de usuario/correo y la contraseña son requeridos.' };
   }
   
   let user: User | null = null;
   
   try {
-    const authResult = await authenticateUser(email, password);
+    const authResult = await authenticateUser(identifier, password);
 
     if (authResult.error || !authResult.user) {
       return { message: authResult.error || 'Credenciales inválidas o el usuario no existe.' };

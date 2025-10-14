@@ -2,13 +2,14 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { CreateUserSchema, CreateTrainingSchema } from '@/lib/schemas';
+import { CreateUserSchema, CreateTrainingSchema, UpdateUserSchema } from '@/lib/schemas';
 import {
   assignTrainingToUsers as assignTrainingToUsersData,
   createTraining as createTrainingData,
   deleteTraining as deleteTrainingData,
   deleteUser as deleteUserData,
   createUser as createUserData,
+  updateUserData,
   promoteUser as promoteUserData,
   findUserByEmail,
   assignTrainingToUser,
@@ -53,6 +54,51 @@ export async function createUser(prevState: any, formData: FormData) {
         return { success: true, message: `Usuario creado con la contraseña: ${validatedFields.data.password}. ¡Recuerda compartirla!`, errors: {} };
     } catch (error: any) {
         return { message: error.message || 'No se pudo crear el usuario.', errors: {} };
+    }
+}
+
+export async function updateUser(prevState: any, formData: FormData) {
+    const userId = formData.get('userId') as string;
+    if (!userId) {
+        return { message: 'ID de usuario no encontrado.', errors: {}, success: false };
+    }
+
+    const validatedFields = UpdateUserSchema.safeParse({
+        name: formData.get('name'),
+        email: formData.get('email'),
+        role: formData.get('role'),
+        categories: formData.getAll('categories'),
+    });
+
+    if (!validatedFields.success) {
+        return {
+            errors: validatedFields.error.flatten().fieldErrors,
+            message: 'Error de validación. Por favor, revisa los campos.',
+            success: false,
+        };
+    }
+    
+    try {
+        const existingUser = await findUserByEmail(validatedFields.data.email);
+        if (existingUser && existingUser.id !== userId) {
+            return {
+                errors: { email: ['Este correo electrónico ya está en uso por otro usuario.'] },
+                message: 'Error al actualizar el usuario.',
+                success: false,
+            };
+        }
+
+        await updateUserData(userId, {
+            name: validatedFields.data.name,
+            email: validatedFields.data.email,
+            role: validatedFields.data.role as 'user' | 'admin',
+            categories: validatedFields.data.categories as UserCategory[],
+        });
+
+        revalidatePath('/admin');
+        return { success: true, message: 'Usuario actualizado exitosamente.', errors: {} };
+    } catch (error: any) {
+        return { message: error.message || 'No se pudo actualizar el usuario.', errors: {}, success: false };
     }
 }
 

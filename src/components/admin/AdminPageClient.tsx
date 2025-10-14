@@ -38,7 +38,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import type { User, Training, Assignment, PopulatedAssignment, TrainingUrgency, TrainingCategory, UserCategory } from '@/lib/types';
 import { createUser, createTraining, promoteUser, assignTrainingToUsers, deleteTraining, deleteUser } from '@/app/admin-actions';
-import { FilePlus2, Loader2, UserPlus, Shield, Check, Users, Trash2, UserX, AlertCircle, Database, Calendar as CalendarIcon, Search, Pencil, BookUser, Briefcase } from 'lucide-react';
+import { FilePlus2, Loader2, UserPlus, Shield, Check, Users, Trash2, UserX, AlertCircle, Database, Calendar as CalendarIcon, Search, Pencil, BookUser, Briefcase, Edit } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
     Dialog,
@@ -70,6 +70,7 @@ import { format } from 'date-fns';
 import { Calendar } from '../ui/calendar';
 import { EditTrainingDialog } from './EditTrainingDialog';
 import { TrainerDashboardClient } from '../dashboard/TrainerDashboardClient';
+import { EditUserDialog } from './EditUserDialog';
 
 const USER_CATEGORIES: UserCategory[] = ['Supervisión', 'Ingresantes', 'Operaciones', 'Línea de Mando (FC)', 'Terceros', 'Mantenimiento', 'Brigadistas', 'RRHH'];
 const TRAINING_CATEGORIES: TrainingCategory[] = ['Seguridad', 'Calidad', 'DPO', 'TPM', 'Medio Ambiente', 'Mejora Enfocada', 'Obligatoria'];
@@ -390,7 +391,8 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
   const [trainings, setTrainings] = useState(initialTrainings);
   const [assignments, setAssignments] = useState(allAssignments);
 
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedUserForDetails, setSelectedUserForDetails] = useState<User | null>(null);
+  const [selectedUserForEdit, setSelectedUserForEdit] = useState<User | null>(null);
   const [selectedTrainingToEdit, setSelectedTrainingToEdit] = useState<TrainingWithAssignments | null>(null);
 
   const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
@@ -513,7 +515,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
   return (
     <>
     <Tabs defaultValue="users" className="w-full">
-      <TabsList className="flex flex-wrap h-auto">
+      <TabsList className="flex-wrap h-auto justify-start">
         {visibleTabs.map(tab => (
              <TabsTrigger key={tab.value} value={tab.value}>
                 {tab.icon && <tab.icon className="mr-2 h-4 w-4" />}
@@ -541,7 +543,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                     <CardContent>
                         <div className="md:hidden space-y-4">
                             {(filteredUsers || []).map((user) => (
-                                <Card key={user.id} className="p-4 cursor-pointer hover:bg-muted/50" onClick={() => setSelectedUser(user)}>
+                                <Card key={user.id} className="p-4" onClick={() => setSelectedUserForDetails(user)}>
                                     <div className="flex justify-between items-start">
                                         <div>
                                             <p className="font-bold">{user.name}</p>
@@ -556,6 +558,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                         {(user.categories || []).map(cat => <Badge key={cat} variant="outline" className="text-xs">{cat}</Badge>)}
                                     </div>
                                     <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t">
+                                        <Button variant="outline" size="sm" onClick={(e) => {e.stopPropagation(); setSelectedUserForEdit(user);}}><Edit className="mr-2 h-4 w-4" />Editar</Button>
                                         <PromoteButton user={user} />
                                         {currentUser.id !== user.id && <DeleteUserDialog user={user} />}
                                     </div>
@@ -575,17 +578,18 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                             </TableHeader>
                             <TableBody>
                                 {(filteredUsers || []).map((user) => (
-                                <TableRow key={user.id} className="cursor-pointer" onClick={() => setSelectedUser(user)}>
-                                    <TableCell className="font-medium">{user.name}</TableCell>
-                                    <TableCell>{user.email}</TableCell>
-                                    <TableCell>
+                                <TableRow key={user.id}>
+                                    <TableCell className="font-medium cursor-pointer" onClick={() => setSelectedUserForDetails(user)}>{user.name}</TableCell>
+                                    <TableCell className="cursor-pointer" onClick={() => setSelectedUserForDetails(user)}>{user.email}</TableCell>
+                                    <TableCell className="cursor-pointer" onClick={() => setSelectedUserForDetails(user)}>
                                         <div className="flex flex-wrap gap-1">
                                             {(user.categories || []).map(cat => <Badge key={cat} variant="outline" className="text-xs">{cat}</Badge>)}
                                         </div>
                                     </TableCell>
-                                    <TableCell>{user.role === 'admin' ? 'Admin' : 'Usuario'}</TableCell>
+                                    <TableCell className="cursor-pointer" onClick={() => setSelectedUserForDetails(user)}>{user.role === 'admin' ? 'Admin' : 'Usuario'}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex items-center justify-end gap-2">
+                                            <Button variant="outline" size="sm" onClick={() => setSelectedUserForEdit(user)}><Edit className="mr-2 h-3 w-3" />Editar</Button>
                                             <PromoteButton user={user} />
                                             {currentUser.id !== user.id && <DeleteUserDialog user={user} />}
                                         </div>
@@ -953,7 +957,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                   </div>
                   <div>
                       <h3 className="text-lg font-semibold mb-2">Colección: 'assignments'</h3>
-                      <ScrollArea className="h-72 w-full rounded-md border p-4 bg-muted/  ৫০">
+                      <ScrollArea className="h-72 w-full rounded-md border p-4 bg-muted/50">
                           <pre className="text-sm">
                               {JSON.stringify(allAssignments, null, 2)}
                           </pre>
@@ -965,12 +969,25 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
       )}
     </Tabs>
 
-    {selectedUser && (
+    {selectedUserForDetails && (
         <UserTrainingDetailsDialog
-            user={selectedUser}
-            assignments={userAssignments(selectedUser.id)}
-            onOpenChange={() => setSelectedUser(null)}
+            user={selectedUserForDetails}
+            assignments={userAssignments(selectedUserForDetails.id)}
+            onOpenChange={() => setSelectedUserForDetails(null)}
             onAssignmentStatusChange={handleAssignmentStatusChange}
+        />
+    )}
+
+    {selectedUserForEdit && (
+        <EditUserDialog 
+            user={selectedUserForEdit}
+            isOpen={!!selectedUserForEdit}
+            onOpenChange={(isOpen) => {
+                if (!isOpen) {
+                    setSelectedUserForEdit(null)
+                }
+            }}
+            userCategories={USER_CATEGORIES}
         />
     )}
 
