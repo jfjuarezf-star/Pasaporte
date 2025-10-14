@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useActionState, useEffect, useRef, useState } from 'react';
+import { useActionState, useEffect, useRef } from 'react';
 import { useFormStatus } from 'react-dom';
 import {
   Dialog,
@@ -22,14 +22,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
 import { updateTraining } from '@/app/admin-actions';
 import { Training, TrainingCategory, User } from '@/lib/types';
-import { AlertCircle, CalendarIcon, Check, FilePlus2, Loader2 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { AlertCircle, Check, FilePlus2, Loader2 } from 'lucide-react';
 
 const TRAINING_CATEGORIES: TrainingCategory[] = ['Seguridad', 'Calidad', 'DPO', 'TPM', 'Medio Ambiente', 'Mejora Enfocada', 'Obligatoria'];
 
@@ -59,10 +54,6 @@ export function EditTrainingDialog({
   const [state, formAction] = useActionState(updateTraining, initialFormState);
   const formRef = useRef<HTMLFormElement>(null);
   
-  const [scheduledDate, setScheduledDate] = useState<Date | undefined>(
-    training.scheduledDate ? new Date(training.scheduledDate) : undefined
-  );
-
   useEffect(() => {
     if (state.success) {
       onOpenChange(false);
@@ -70,12 +61,10 @@ export function EditTrainingDialog({
   }, [state.success, onOpenChange]);
 
   useEffect(() => {
-    // Reset form state when dialog opens for a new training
     if (isOpen) {
         formRef.current?.reset();
-        setScheduledDate(training.scheduledDate ? new Date(training.scheduledDate) : undefined);
     }
-  }, [isOpen, training]);
+  }, [isOpen]);
 
 
   return (
@@ -124,24 +113,6 @@ export function EditTrainingDialog({
                     </SelectContent>
                 </Select>
                 {state?.errors?.trainerName && <p className="text-sm text-destructive">{state.errors.trainerName[0]}</p>}
-            </div>
-            <div className="space-y-2">
-                <Label htmlFor="scheduledDate">Fecha Prevista</Label>
-                <Popover>
-                    <PopoverTrigger asChild>
-                        <Button
-                            variant={"outline"}
-                            className={cn("w-full justify-start text-left font-normal", !scheduledDate && "text-muted-foreground")}
-                        >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {scheduledDate ? format(scheduledDate, "PPP", { locale: es }) : <span>Elegir fecha</span>}
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                        <Calendar mode="single" selected={scheduledDate} onSelect={setScheduledDate} initialFocus />
-                    </PopoverContent>
-                </Popover>
-                <input type="hidden" name="scheduledDate" value={scheduledDate ? scheduledDate.toISOString() : ''} />
             </div>
             <div className="space-y-2">
                 <Label htmlFor="duration">Duración (minutos)</Label>

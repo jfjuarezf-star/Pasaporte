@@ -13,7 +13,7 @@ import {
   promoteUser as promoteUserData,
   findUserByEmail,
   findUserByUsername,
-  assignTrainingToUser,
+  assignTrainingToUser as assignTrainingToUserData,
   updateTraining as updateTrainingData,
 } from '@/lib/data';
 import type { Training, UserCategory } from '@/lib/types';
@@ -130,7 +130,6 @@ export async function updateUser(prevState: any, formData: FormData) {
 
 
 export async function createTraining(prevState: any, formData: FormData) {
-    const scheduledDate = formData.get('scheduledDate');
     const validatedFields = CreateTrainingSchema.safeParse({
         title: formData.get('title'),
         description: formData.get('description'),
@@ -138,7 +137,6 @@ export async function createTraining(prevState: any, formData: FormData) {
         urgency: formData.get('urgency'),
         duration: formData.get('duration'),
         trainerName: formData.get('trainerName'),
-        scheduledDate: scheduledDate ? new Date(scheduledDate as string).toISOString() : undefined,
     });
 
     if (!validatedFields.success) {
@@ -156,7 +154,6 @@ export async function createTraining(prevState: any, formData: FormData) {
             urgency: validatedFields.data.urgency as Training['urgency'],
             duration: validatedFields.data.duration,
             trainerName: validatedFields.data.trainerName,
-            scheduledDate: validatedFields.data.scheduledDate,
         });
         revalidatePath('/admin');
         return { success: true, message: 'Capacitación creada exitosamente.', errors: {} };
@@ -170,7 +167,6 @@ export async function updateTraining(prevState: any, formData: FormData) {
     if (!trainingId) {
         return { message: 'ID de capacitación no encontrado.', errors: {} };
     }
-    const scheduledDate = formData.get('scheduledDate');
     const validatedFields = CreateTrainingSchema.safeParse({
         title: formData.get('title'),
         description: formData.get('description'),
@@ -178,7 +174,6 @@ export async function updateTraining(prevState: any, formData: FormData) {
         urgency: formData.get('urgency'),
         duration: formData.get('duration'),
         trainerName: formData.get('trainerName'),
-        scheduledDate: scheduledDate ? new Date(scheduledDate as string).toISOString() : undefined,
     });
 
     if (!validatedFields.success) {
@@ -196,7 +191,6 @@ export async function updateTraining(prevState: any, formData: FormData) {
             urgency: validatedFields.data.urgency as Training['urgency'],
             duration: validatedFields.data.duration,
             trainerName: validatedFields.data.trainerName,
-            scheduledDate: validatedFields.data.scheduledDate,
         });
         revalidatePath('/admin');
         return { success: true, message: 'Capacitación actualizada exitosamente.', errors: {} };
@@ -206,9 +200,9 @@ export async function updateTraining(prevState: any, formData: FormData) {
 }
 
 
-export async function assignTraining(trainingId: string, userId: string) {
+export async function assignTrainingToUser(trainingId: string, userId: string, scheduledDate?: string) {
     try {
-        await assignTrainingToUser(trainingId, userId);
+        await assignTrainingToUserData(trainingId, userId, scheduledDate);
         revalidatePath('/admin');
         return { success: true, message: 'Asignación exitosa.' };
     } catch (error) {
@@ -216,12 +210,12 @@ export async function assignTraining(trainingId: string, userId: string) {
     }
 }
 
-export async function assignTrainingToUsers(trainingId: string, userIds: string[]) {
+export async function assignTrainingToUsers(trainingId: string, userIds: string[], scheduledDate?: string) {
     if (!userIds || userIds.length === 0) {
         return { success: false, message: 'No se seleccionaron usuarios.' };
     }
     try {
-        await assignTrainingToUsersData(trainingId, userIds);
+        await assignTrainingToUsersData(trainingId, userIds, scheduledDate);
         revalidatePath('/admin');
         return { success: true, message: 'Asignación masiva exitosa.' };
     } catch (error) {

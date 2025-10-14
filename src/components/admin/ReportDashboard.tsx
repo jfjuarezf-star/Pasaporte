@@ -19,7 +19,7 @@ import {
 } from 'recharts';
 import { Download, Users, Clock, AlertTriangle, CheckCircle, Calendar, CalendarX, BookOpen } from 'lucide-react';
 import { subMonths, isBefore, startOfDay, getMonth, getYear, setMonth, setYear, format } from 'date-fns';
-import { es } from 'date-fns/locale/es';
+import { es } from 'date-fns/locale';
 import type { User, Training, Assignment, TrainingCategory } from '@/lib/types';
 import { CSVLink } from 'react-csv';
 import { Button } from '../ui/button';
@@ -72,16 +72,17 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
     
     // Calculate Overdue Trainings
     const trainingsMap = new Map(trainings.map(t => [t.id, t]));
-    const overdueTrainingsMap = new Map<string, { training: Training, pendingCount: number }>();
+    const overdueTrainingsMap = new Map<string, { training: Training, pendingCount: number, assignment: Assignment }>();
 
     assignments.forEach(assignment => {
       if (assignment.status === 'pending') {
         const training = trainingsMap.get(assignment.trainingId);
-        if (training?.scheduledDate && isBefore(new Date(training.scheduledDate), today)) {
-          if (!overdueTrainingsMap.has(training.id)) {
-            overdueTrainingsMap.set(training.id, { training, pendingCount: 0 });
+        if (training && assignment.scheduledDate && isBefore(new Date(assignment.scheduledDate), today)) {
+          const key = `${training.id}-${assignment.scheduledDate}`;
+          if (!overdueTrainingsMap.has(key)) {
+            overdueTrainingsMap.set(key, { training, pendingCount: 0, assignment });
           }
-          overdueTrainingsMap.get(training.id)!.pendingCount++;
+          overdueTrainingsMap.get(key)!.pendingCount++;
         }
       }
     });
@@ -116,12 +117,15 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
   }, [assignments, trainings, users]);
   
   const scheduledTrainingsThisMonth = useMemo(() => {
-    return trainings.filter(t => {
-      if (!t.scheduledDate) return false;
-      const scheduled = new Date(t.scheduledDate);
+    const trainingsMap = new Map(trainings.map(t => [t.id, t]));
+    return assignments.filter(a => {
+      if (!a.scheduledDate) return false;
+      const scheduled = new Date(a.scheduledDate);
       return getMonth(scheduled) === reportMonth && getYear(scheduled) === reportYear;
-    }).sort((a, b) => new Date(a.scheduledDate!).getTime() - new Date(b.scheduledDate!).getTime());
-  }, [trainings, reportMonth, reportYear]);
+    }).map(a => ({...a, training: trainingsMap.get(a.trainingId)}))
+    .filter(a => !!a.training)
+    .sort((a, b) => new Date(a.scheduledDate!).getTime() - new Date(b.scheduledDate!).getTime());
+  }, [assignments, trainings, reportMonth, reportYear]);
   
   const kpiData = useMemo(() => {
     const trainedUserIds = new Set(assignments.filter(a => a.status === 'completed').map(a => a.userId));
@@ -148,7 +152,7 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
       if (userAssignments.length === 0) {
         return [{
           userName: user.name, userEmail: user.email, trainingTitle: 'N/A', category: 'N/A', trainerName: 'N/A',
-          status: 'Sin asignaciones', assignedDate: 'N/A', completionDate: 'N/A',
+          status: 'Sin asignaciones', assignedDate: 'N/A', completionDate: 'N/A', scheduledDate: 'N/A',
         }];
       }
       return userAssignments.map(assignment => {
@@ -160,6 +164,7 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
           status: assignment.status === 'completed' ? 'Completado' : 'Pendiente',
           assignedDate: assignment.assignedDate ? format(new Date(assignment.assignedDate), 'yyyy-MM-dd') : 'N/A',
           completionDate: assignment.completedDate ? format(new Date(assignment.completedDate), 'yyyy-MM-dd') : 'N/A',
+          scheduledDate: assignment.scheduledDate ? format(new Date(assignment.scheduledDate), 'yyyy-MM-dd') : 'N/A',
         };
       });
     });
@@ -174,6 +179,7 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
     { label: "Estado", key: "status" }, 
     { label: "Fecha de Asignación", key: "assignedDate" },
     { label: "Fecha de Finalización", key: "completionDate" },
+    { label: "Fecha Programada", key: "scheduledDate" },
   ];
 
   return (
@@ -238,7 +244,7 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{kpiData.overdueCount}</div>
-            <p className="text-xs text-muted-foreground">Pendientes y fuera de fecha</p>
+            <p className="text-xs text-muted-foreground">Asignaciones pendientes y fuera de fecha</p>
           </CardContent>
         </Card>
       </div>
@@ -248,10 +254,10 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
           <CardHeader>
               <CardTitle className="flex items-center gap-2">
                   <AlertTriangle className="text-destructive" />
-                  Alerta: Capacitaciones Atrasadas
+                  Alerta: Asignaciones Atrasadas
               </CardTitle>
               <CardDescription>
-                  Estas capacitaciones han superado su fecha programada y aún tienen participantes pendientes.
+                  Estas asignaciones han superado su fecha programada y siguen pendientes.
               </CardDescription>
           </CardHeader>
           <CardContent>
@@ -266,11 +272,11 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
                           </TableRow>
                       </TableHeader>
                       <TableBody>
-                          {overdueTrainings.map(({ training, pendingCount }) => (
-                              <TableRow key={training.id} className="bg-destructive/10">
+                          {overdueTrainings.map(({ training, pendingCount, assignment }) => (
+                              <TableRow key={assignment.id} className="bg-destructive/10">
                                   <TableCell className="font-medium">{training.title}</TableCell>
                                   <TableCell>{training.trainerName}</TableCell>
-                                  <TableCell>{format(new Date(training.scheduledDate!), 'PPP', { locale: es })}</TableCell>
+                                  <TableCell>{format(new Date(assignment.scheduledDate!), 'PPP', { locale: es })}</TableCell>
                                   <TableCell className="text-center font-bold text-lg">{pendingCount}</TableCell>
                               </TableRow>
                           ))}
@@ -279,7 +285,7 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
               ) : (
                   <div className="text-center py-8">
                       <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
-                      <p className="mt-4 text-muted-foreground">¡Excelente! No hay capacitaciones atrasadas.</p>
+                      <p className="mt-4 text-muted-foreground">¡Excelente! No hay asignaciones atrasadas.</p>
                   </div>
               )}
           </CardContent>
@@ -379,12 +385,12 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {scheduledTrainingsThisMonth.map(training => (
-                                <TableRow key={training.id}>
-                                    <TableCell>{format(new Date(training.scheduledDate!), 'PPP', { locale: es })}</TableCell>
-                                    <TableCell>{training.title}</TableCell>
-                                    <TableCell>{training.trainerName}</TableCell>
-                                    <TableCell><div className='text-left'><span className='px-2 py-1 text-xs rounded-full border bg-muted'>{training.category}</span></div></TableCell>
+                            {scheduledTrainingsThisMonth.map(assignment => (
+                                <TableRow key={assignment.id}>
+                                    <TableCell>{format(new Date(assignment.scheduledDate!), 'PPP', { locale: es })}</TableCell>
+                                    <TableCell>{assignment.training!.title}</TableCell>
+                                    <TableCell>{assignment.training!.trainerName}</TableCell>
+                                    <TableCell><div className='text-left'><span className='px-2 py-1 text-xs rounded-full border bg-muted'>{assignment.training!.category}</span></div></TableCell>
                                 </TableRow>
                             ))}
                         </TableBody>
@@ -402,6 +408,3 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
     </div>
   );
 }
-
-
-    

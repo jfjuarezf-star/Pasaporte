@@ -57,9 +57,13 @@ export function TrainerDashboardClient({ initialTrainings }: TrainerDashboardCli
 
     const filteredTrainings = useMemo(() => {
         if (!searchTerm) return trainings;
-        return trainings.filter(training => 
-            training.title.toLowerCase().includes(searchTerm.toLowerCase())
-        );
+        return trainings.map(training => {
+            const filteredAssignments = training.assignments.filter(assignment => 
+                assignment.user?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                assignment.user?.username?.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+            return { ...training, assignments: filteredAssignments };
+        }).filter(training => training.assignments.length > 0 || training.title.toLowerCase().includes(searchTerm.toLowerCase()));
     }, [trainings, searchTerm]);
 
     const handleAssignmentCompleted = (assignmentId: string) => {
@@ -76,6 +80,7 @@ export function TrainerDashboardClient({ initialTrainings }: TrainerDashboardCli
     };
 
     const getInitials = (name: string) => {
+        if (!name) return '?';
         return name
           .split(" ")
           .map((n) => n[0])
@@ -103,7 +108,7 @@ export function TrainerDashboardClient({ initialTrainings }: TrainerDashboardCli
             <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                    placeholder="Buscar por título de capacitación..."
+                    placeholder="Buscar por título de capacitación o nombre de participante..."
                     className="pl-8"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
@@ -114,7 +119,7 @@ export function TrainerDashboardClient({ initialTrainings }: TrainerDashboardCli
                 <Card>
                     <CardContent className="pt-6">
                         <p className="text-center text-muted-foreground">
-                            No se encontraron capacitaciones con ese título.
+                            No se encontraron resultados para tu búsqueda.
                         </p>
                     </CardContent>
                 </Card>
@@ -133,7 +138,7 @@ export function TrainerDashboardClient({ initialTrainings }: TrainerDashboardCli
                                         <div className='text-left'>
                                             <h3 className="font-semibold text-lg">{training.title}</h3>
                                             <p className="text-sm text-muted-foreground">
-                                                {training.scheduledDate ? `Programada para: ${format(new Date(training.scheduledDate), 'PPP', { locale: es })}` : 'Sin fecha programada'}
+                                                Responsable: {training.trainerName}
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-4 mt-2 sm:mt-0">
@@ -149,22 +154,22 @@ export function TrainerDashboardClient({ initialTrainings }: TrainerDashboardCli
                                                 <TableRow>
                                                     <TableHead className='w-[60px]'></TableHead>
                                                     <TableHead>Participante</TableHead>
-                                                    <TableHead>Email</TableHead>
+                                                    <TableHead>Fecha Programada</TableHead>
                                                     <TableHead>Estado</TableHead>
                                                     <TableHead className="text-right">Acción</TableHead>
                                                 </TableRow>
                                             </TableHeader>
                                             <TableBody>
-                                                {training.assignments.map(({ id, user, status, completedDate }) => (
+                                                {training.assignments.map(({ id, user, status, scheduledDate }) => (
                                                     <TableRow key={id}>
                                                         <TableCell>
                                                             <Avatar className='h-8 w-8'>
                                                                 <AvatarImage src={user?.avatarUrl} alt={user?.name} />
-                                                                <AvatarFallback>{user ? getInitials(user.name) : '?'}</AvatarFallback>
+                                                                <AvatarFallback>{getInitials(user?.name ?? '')}</AvatarFallback>
                                                             </Avatar>
                                                         </TableCell>
                                                         <TableCell className="font-medium">{user?.name || 'Usuario no encontrado'}</TableCell>
-                                                        <TableCell>{user?.email || '-'}</TableCell>
+                                                        <TableCell>{scheduledDate ? format(new Date(scheduledDate), 'PPP', { locale: es }) : 'N/A'}</TableCell>
                                                         <TableCell>
                                                             {status === 'completed' ? (
                                                                 <Badge variant='secondary' className='bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100'>Completado</Badge>
@@ -182,7 +187,7 @@ export function TrainerDashboardClient({ initialTrainings }: TrainerDashboardCli
                                             </TableBody>
                                         </Table>
                                         {training.assignments.length === 0 && (
-                                            <p className="text-center text-muted-foreground py-8">No hay participantes asignados a esta capacitación.</p>
+                                            <p className="text-center text-muted-foreground py-8">No hay participantes para esta capacitación con los filtros aplicados.</p>
                                         )}
                                     </div>
                                 </AccordionContent>

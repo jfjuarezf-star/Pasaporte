@@ -1,5 +1,6 @@
 
 
+
 'use server';
 import 'server-only';
 import { getFirebaseAdmin } from '@/lib/firebase';
@@ -307,11 +308,8 @@ export const getTrainingsForUser = async (userId: string): Promise<PopulatedAssi
             if (!trainingDetails) return null;
             return {
                 ...trainingDetails,
+                ...assignment,
                 assignmentId: assignment.id,
-                status: assignment.status,
-                userId: assignment.userId,
-                assignedDate: assignment.assignedDate,
-                completedDate: assignment.completedDate,
             };
         }).filter((a): a is PopulatedAssignment => a !== null);
     } catch (error) {
@@ -335,7 +333,7 @@ export const updateAssignmentStatus = async (assignmentId: string, status: Train
     await assignmentRef.update(updateData);
 };
 
-export const assignTrainingToUser = async (trainingId: string, userId: string): Promise<void> => {
+export const assignTrainingToUser = async (trainingId: string, userId: string, scheduledDate?: string): Promise<void> => {
     const { db } = getFirebaseAdmin();
     if (!db) throw new Error("Database not initialized for assignTrainingToUser.");
 
@@ -347,17 +345,23 @@ export const assignTrainingToUser = async (trainingId: string, userId: string): 
       console.log(`Assignment already exists for user ${userId} and training ${trainingId}`);
       return;
     }
-
-    await assignmentsRef.add({
+    
+    const newAssignment: Omit<Assignment, 'id'> = {
         userId,
         trainingId,
         status: 'pending',
         assignedDate: new Date().toISOString(),
         completedDate: null,
-    });
+    };
+
+    if (scheduledDate) {
+        newAssignment.scheduledDate = scheduledDate;
+    }
+
+    await assignmentsRef.add(newAssignment);
 };
 
-export const assignTrainingToUsers = async (trainingId: string, userIds: string[]): Promise<void> => {
+export const assignTrainingToUsers = async (trainingId: string, userIds: string[], scheduledDate?: string): Promise<void> => {
     const { db } = getFirebaseAdmin();
     if (!db) throw new Error("Database not initialized for assignTrainingToUsers.");
     
@@ -372,13 +376,17 @@ export const assignTrainingToUsers = async (trainingId: string, userIds: string[
 
     for (const userId of userIdsToAssign) {
       const newAssignmentRef = db.collection("assignments").doc();
-      batch.set(newAssignmentRef, {
+      const newAssignment: Omit<Assignment, 'id'> = {
         userId,
         trainingId,
         status: 'pending',
         assignedDate: new Date().toISOString(),
         completedDate: null,
-      });
+      };
+      if (scheduledDate) {
+        newAssignment.scheduledDate = scheduledDate;
+      }
+      batch.set(newAssignmentRef, newAssignment);
     }
 
     if (userIdsToAssign.length > 0) {
@@ -448,4 +456,3 @@ export const getAllAssignments = async (): Promise<Assignment[]> => {
         return [];
     }
 }
-    

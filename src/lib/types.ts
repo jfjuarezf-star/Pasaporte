@@ -22,16 +22,14 @@ export type Assignment = {
   status: TrainingStatus;
   assignedDate?: string; // ISO date string when status is 'pending'
   completedDate?: string; // ISO date string when status is 'completed'
+  scheduledDate?: string; // ISO date string for when the training is planned for this specific user
 };
 
 // This is the shape of data passed to the TrainingCard
-export type PopulatedAssignment = Training & {
+export type PopulatedAssignment = Training & Assignment & {
   assignmentId: string;
-  status: TrainingStatus;
-  userId: string;
-  assignedDate?: string;
-  completedDate?: string;
 };
+
 
 // Used for the Training -> Users dialog
 export type Participant = Assignment & {
@@ -50,5 +48,4 @@ export type Training = {
   urgency: TrainingUrgency;
   duration?: number; // Duration in minutes
   trainerName: string; // Name of the person giving the training
-  scheduledDate?: string; // ISO date string for when the training is planned
 };

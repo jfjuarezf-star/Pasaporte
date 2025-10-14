@@ -1,10 +1,11 @@
+
 import { z } from 'zod';
 
 const userCategories = z.enum(['Supervisión', 'Ingresantes', 'Operaciones', 'Línea de Mando (FC)', 'Terceros', 'Mantenimiento', 'Brigadistas', 'RRHH']);
 
 export const CreateUserSchema = z.object({
   name: z.string().min(3, { message: 'El nombre completo debe tener al menos 3 caracteres.' }),
-  username: z.string().min(3, { message: 'El nombre de usuario debe tener al menos 3 caracteres.' }).regex(/^[a-zA-Z0-9_]+$/, { message: 'El nombre de usuario solo puede contener letras, números y guiones bajos.'}),
+  username: z.string().min(3, { message: 'El nombre de usuario debe tener al menos 3 caracteres.' }).regex(/^[a-zA-Z0-9_.-]+$/, { message: 'El nombre de usuario solo puede contener letras, números, puntos, guiones y guiones bajos.'}),
   email: z.string().email({ message: 'Por favor, introduce un correo válido.' }).optional().or(z.literal('')),
   password: z.string().min(4, { message: 'La contraseña debe tener al menos 4 caracteres.' }),
   role: z.enum(['user', 'admin']),
@@ -22,7 +23,7 @@ export const CreateUserSchema = z.object({
 
 export const UpdateUserSchema = z.object({
   name: z.string().min(3, { message: 'El nombre completo debe tener al menos 3 caracteres.' }),
-  username: z.string().min(3, { message: 'El nombre de usuario debe tener al menos 3 caracteres.' }).regex(/^[a-zA-Z0-9_]+$/, { message: 'El nombre de usuario solo puede contener letras, números y guiones bajos.'}),
+  username: z.string().min(3, { message: 'El nombre de usuario debe tener al menos 3 caracteres.' }).regex(/^[a-zA-Z0-9_.-]+$/, { message: 'El nombre de usuario solo puede contener letras, números, puntos, guiones y guiones bajos.'}),
   email: z.string().email({ message: 'Por favor, introduce un correo válido.' }).optional().or(z.literal('')),
   role: z.enum(['user', 'admin']),
   categories: z.array(userCategories).optional(),
@@ -44,7 +45,6 @@ export const CreateTrainingSchema = z.object({
   urgency: z.enum(['high', 'medium', 'low'], { errorMap: () => ({ message: 'Debes seleccionar una urgencia.' }) }),
   duration: z.coerce.number().min(1, { message: 'La duración debe ser al menos 1 minuto.' }),
   trainerName: z.string().min(3, { message: 'Debes seleccionar un responsable.' }),
-  scheduledDate: z.string().optional(),
 });
 
 export const ChangePasswordSchema = z

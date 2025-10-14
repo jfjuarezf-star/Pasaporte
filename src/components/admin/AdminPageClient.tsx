@@ -126,6 +126,8 @@ function AssignTrainingDialog({
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const [selectedCategories, setSelectedCategories] = useState<Set<UserCategory>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
+  const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
+
 
   const filteredUsers = useMemo(() => {
     let usersToFilter = users;
@@ -142,6 +144,7 @@ function AssignTrainingDialog({
         setSelectedUserIds(new Set());
         setSelectedCategories(new Set());
         setSearchTerm('');
+        setScheduledDate(undefined);
     }
   }, [isOpen]);
 
@@ -150,7 +153,7 @@ function AssignTrainingDialog({
       const userIdsToAssign = Array.from(selectedUserIds).filter(id => !training.assignments.some(a => a.userId === id));
       if (userIdsToAssign.length === 0) return;
       
-      const result = await assignTrainingToUsers(training.id, userIdsToAssign);
+      const result = await assignTrainingToUsers(training.id, userIdsToAssign, scheduledDate?.toISOString());
       if (result.success) {
         onAssignmentsChange();
         setIsOpen(false);
@@ -196,79 +199,107 @@ function AssignTrainingDialog({
           Asignar
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Asignar: {training.title}</DialogTitle>
           <DialogDescription>
-            Selecciona usuarios individuales, por categoría o usa el buscador.
+            Selecciona usuarios y opcionalmente una fecha específica para esta asignación.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid grid-cols-2 gap-6">
-          <div>
-            <h4 className="font-semibold mb-2">Por Categoría</h4>
-            <div className="space-y-2">
-              {USER_CATEGORIES.map(category => (
-                <div key={category} className="flex items-center gap-2">
-                  <Checkbox
-                    id={`cat-${category}`}
-                    checked={selectedCategories.has(category)}
-                    onCheckedChange={(checked) => handleCategoryCheckboxChange(category, !!checked)}
-                  />
-                  <Label htmlFor={`cat-${category}`}>{category}</Label>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div>
-            <h4 className="font-semibold mb-2">Manualmente</h4>
-            <div className="relative mb-2">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Buscar por nombre..."
-                className="pl-8"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            <ScrollArea className="h-64">
-              <div className="space-y-2 py-1 pr-4">
-                {filteredUsers.map((user) => {
-                  const isAssigned = training.assignments.some(a => a.userId === user.id);
-                  const isSelected = selectedUserIds.has(user.id);
 
-                  return (
-                    <div
-                      key={user.id}
-                      className="flex items-center justify-between p-2 rounded-md hover:bg-muted"
-                    >
-                      <Label
-                        htmlFor={`user-${user.id}`}
-                        className="flex items-center gap-2 cursor-pointer"
-                      >
-                        <Checkbox
-                          id={`user-${user.id}`}
-                          checked={isAssigned || isSelected}
-                          disabled={isAssigned}
-                          onCheckedChange={(checked) => handleCheckboxChange(user.id, !!checked)}
+        <div className="space-y-4">
+             <div className="space-y-2">
+                <Label htmlFor="scheduledDate">Fecha Prevista (para esta asignación)</Label>
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button
+                            variant={"outline"}
+                            className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !scheduledDate && "text-muted-foreground"
+                            )}
+                        >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {scheduledDate ? format(scheduledDate, "PPP", { locale: es }) : <span>Elegir fecha (opcional)</span>}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                        <Calendar
+                            mode="single"
+                            selected={scheduledDate}
+                            onSelect={setScheduledDate}
+                            initialFocus
                         />
-                        <span>
-                          {user.name}
-                        </span>
-                      </Label>
-                      {isAssigned && (
-                        <Badge variant="secondary" className="text-xs">
-                          Asignado
-                        </Badge>
-                      )}
+                    </PopoverContent>
+                </Popover>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <h4 className="font-semibold mb-2">Por Categoría</h4>
+                <div className="space-y-2">
+                {USER_CATEGORIES.map(category => (
+                    <div key={category} className="flex items-center gap-2">
+                    <Checkbox
+                        id={`cat-${category}`}
+                        checked={selectedCategories.has(category)}
+                        onCheckedChange={(checked) => handleCategoryCheckboxChange(category, !!checked)}
+                    />
+                    <Label htmlFor={`cat-${category}`}>{category}</Label>
                     </div>
-                  );
-                })}
-                 {filteredUsers.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">No se encontraron usuarios.</p>
-                )}
-              </div>
-            </ScrollArea>
-          </div>
+                ))}
+                </div>
+            </div>
+            <div>
+                <h4 className="font-semibold mb-2">Manualmente</h4>
+                <div className="relative mb-2">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                    placeholder="Buscar por nombre..."
+                    className="pl-8"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                </div>
+                <ScrollArea className="h-64">
+                <div className="space-y-2 py-1 pr-4">
+                    {filteredUsers.map((user) => {
+                    const isAssigned = training.assignments.some(a => a.userId === user.id);
+                    const isSelected = selectedUserIds.has(user.id);
+
+                    return (
+                        <div
+                        key={user.id}
+                        className="flex items-center justify-between p-2 rounded-md hover:bg-muted"
+                        >
+                        <Label
+                            htmlFor={`user-${user.id}`}
+                            className="flex items-center gap-2 cursor-pointer"
+                        >
+                            <Checkbox
+                            id={`user-${user.id}`}
+                            checked={isAssigned || isSelected}
+                            disabled={isAssigned}
+                            onCheckedChange={(checked) => handleCheckboxChange(user.id, !!checked)}
+                            />
+                            <span>
+                            {user.name}
+                            </span>
+                        </Label>
+                        {isAssigned && (
+                            <Badge variant="secondary" className="text-xs">
+                            Asignado
+                            </Badge>
+                        )}
+                        </div>
+                    );
+                    })}
+                    {filteredUsers.length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-4">No se encontraron usuarios.</p>
+                    )}
+                </div>
+                </ScrollArea>
+            </div>
+            </div>
         </div>
         <DialogFooter>
           <Button variant="ghost" onClick={() => setIsOpen(false)}>
@@ -398,8 +429,6 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
   const [selectedTrainingToEdit, setSelectedTrainingToEdit] = useState<TrainingWithAssignments | null>(null);
   const [selectedTrainingForUsers, setSelectedTrainingForUsers] = useState<PopulatedTrainingWithUsers | null>(null);
 
-  const [scheduledDate, setScheduledDate] = useState<Date | undefined>();
-
   // Filters for lists
   const [userSearch, setUserSearch] = useState('');
   const [titleSearch, setTitleSearch] = useState('');
@@ -468,7 +497,6 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
   useEffect(() => {
     if (createTrainingState?.success) {
       createTrainingFormRef.current?.reset();
-      setScheduledDate(undefined);
     }
   }, [createTrainingState]);
   
@@ -486,11 +514,8 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
         const trainingDetails = trainings.find(t => t.id === assignment.trainingId);
         return {
             ...trainingDetails!,
+            ...assignment,
             assignmentId: assignment.id,
-            status: assignment.status,
-            userId: assignment.userId,
-            assignedDate: assignment.assignedDate,
-            completedDate: assignment.completedDate,
         }
     }).filter(a => a.id); // Filter out assignments where training might have been deleted
   }
@@ -661,7 +686,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                             {createUserState?.errors?.username && <p className="text-sm text-destructive">{createUserState.errors.username[0]}</p>}
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="email">Correo Electrónico (opcional para usuarios, obligatorio para admins)</Label>
+                            <Label htmlFor="email">Correo Electrónico (obligatorio para admins)</Label>
                             <Input id="email" name="email" type="email" />
                              {createUserState?.errors?.email && <p className="text-sm text-destructive">{createUserState.errors.email[0]}</p>}
                         </div>
@@ -746,7 +771,6 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                 <Card key={training.id} className="p-4" onClick={() => handleTrainingClick(training)}>
                                     <p className="font-bold">{training.title}</p>
                                     <p className="text-sm text-muted-foreground">Responsable: {training.trainerName}</p>
-                                    {training.scheduledDate && <p className="text-sm text-muted-foreground">Fecha: {format(new Date(training.scheduledDate), 'PPP', { locale: es })}</p>}
                                     <div className="flex flex-wrap gap-2 my-2">
                                         <Badge variant="outline">{training.category}</Badge>
                                         <Badge variant={training.urgency === 'high' ? 'destructive' : 'secondary'}>{urgencyText[training.urgency]}</Badge>
@@ -771,7 +795,6 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                 <TableRow>
                                     <TableHead>Título</TableHead>
                                     <TableHead>Responsable</TableHead>
-                                    <TableHead>Fecha Prevista</TableHead>
                                     <TableHead>Completados</TableHead>
                                     <TableHead className="text-right">Acción</TableHead>
                                 </TableRow>
@@ -784,9 +807,6 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                         <TableRow key={training.id} className="cursor-pointer" onClick={() => handleTrainingClick(training)}>
                                             <TableCell className="font-medium">{training.title}</TableCell>
                                             <TableCell>{training.trainerName}</TableCell>
-                                            <TableCell>
-                                                {training.scheduledDate ? format(new Date(training.scheduledDate), 'PPP', { locale: es }) : 'N/A'}
-                                            </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
                                                     <Users className="h-4 w-4 text-muted-foreground" />
@@ -863,32 +883,6 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                     </SelectContent>
                                 </Select>
                                 {createTrainingState?.errors?.trainerName && <p className="text-sm text-destructive">{createTrainingState.errors.trainerName[0]}</p>}
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="scheduledDate">Fecha Prevista</Label>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button
-                                            variant={"outline"}
-                                            className={cn(
-                                            "w-full justify-start text-left font-normal",
-                                            !scheduledDate && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {scheduledDate ? format(scheduledDate, "PPP", { locale: es }) : <span>Elegir fecha</span>}
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-auto p-0">
-                                        <Calendar
-                                            mode="single"
-                                            selected={scheduledDate}
-                                            onSelect={setScheduledDate}
-                                            initialFocus
-                                        />
-                                    </PopoverContent>
-                                </Popover>
-                                <input type="hidden" name="scheduledDate" value={scheduledDate ? scheduledDate.toISOString() : ''} />
                             </div>
                              <div className="space-y-2">
                                 <Label htmlFor="duration">Duración (minutos)</Label>
