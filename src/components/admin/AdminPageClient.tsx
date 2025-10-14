@@ -638,7 +638,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                     <TableCell className="cursor-pointer" onClick={() => setSelectedUserForDetails(user)}>{user.role === 'admin' ? 'Admin' : 'Usuario'}</TableCell>
                                     <TableCell className="text-right">
                                         <div className="flex items-center justify-end gap-2">
-                                            <Button variant="outline" size="sm" onClick={() => setSelectedUserForEdit(user)}><Edit className="mr-2 h-3 w-3" />Editar</Button>
+                                            <Button variant="outline" size="sm" onClick={(e) => {e.stopPropagation(); setSelectedUserForEdit(user);}}><Edit className="mr-2 h-3 w-3" />Editar</Button>
                                             <PromoteButton user={user} />
                                             {currentUser.id !== user.id && <DeleteUserDialog user={user} />}
                                         </div>
@@ -686,7 +686,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                             {createUserState?.errors?.username && <p className="text-sm text-destructive">{createUserState.errors.username[0]}</p>}
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="email">Correo Electrónico (obligatorio para admins)</Label>
+                            <Label htmlFor="email">Correo Electrónico (opcional para usuarios)</Label>
                             <Input id="email" name="email" type="email" />
                              {createUserState?.errors?.email && <p className="text-sm text-destructive">{createUserState.errors.email[0]}</p>}
                         </div>
@@ -1042,3 +1042,5 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
     </>
   );
 }
+
+    
