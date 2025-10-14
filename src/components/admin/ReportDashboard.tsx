@@ -32,19 +32,22 @@ interface ReportDashboardProps {
 }
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658'];
+const RADIAN = Math.PI / 180;
 
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="p-2 text-sm bg-background/80 backdrop-blur-sm border rounded-md shadow-lg">
-        <p className="font-bold label">{label}</p>
-        <p className="text-blue-500">{`Capacitaciones: ${payload[0].value}`}</p>
-        <p className="text-green-500">{`Duración (horas): ${(payload[1].value / 60).toFixed(1)}`}</p>
-      </div>
-    );
-  }
-  return null;
+const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index, name }: any) => {
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+  if (percent < 0.05) return null; // Don't render label if slice is too small
+
+  return (
+    <text x={x} y={y} fill="white" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central">
+      {`${name} (${(percent * 100).toFixed(0)}%)`}
+    </text>
+  );
 };
+
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => ({
   value: i,
@@ -60,30 +63,57 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
   const [reportYear, setReportYear] = useState(getYear(new Date()));
 
   const {
-    filteredAssignments,
-    filteredTrainings,
     totalUsers,
+    overdueTrainings,
+    categoryCompletionData
   } = useMemo(() => {
     const now = new Date();
-    let startDate: Date | null = null;
+    const today = startOfDay(now);
+    
+    // Calculate Overdue Trainings
+    const trainingsMap = new Map(trainings.map(t => [t.id, t]));
+    const overdueTrainingsMap = new Map<string, { training: Training, pendingCount: number }>();
 
-    if (timeFilter !== 'all') {
-      startDate = subMonths(now, parseInt(timeFilter));
-    }
+    assignments.forEach(assignment => {
+      if (assignment.status === 'pending') {
+        const training = trainingsMap.get(assignment.trainingId);
+        if (training?.scheduledDate && isBefore(new Date(training.scheduledDate), today)) {
+          if (!overdueTrainingsMap.has(training.id)) {
+            overdueTrainingsMap.set(training.id, { training, pendingCount: 0 });
+          }
+          overdueTrainingsMap.get(training.id)!.pendingCount++;
+        }
+      }
+    });
 
-    const relevantAssignments = startDate
-      ? assignments.filter(a => a.assignedDate && new Date(a.assignedDate) >= startDate!)
-      : assignments;
+    // Calculate progress by category
+    const categoryStats: { [key in TrainingCategory]?: { total: number, completed: number } } = {};
 
-    const trainingIds = new Set(relevantAssignments.map(a => a.trainingId));
-    const relevantTrainings = trainings.filter(t => trainingIds.has(t.id));
+    assignments.forEach(assignment => {
+      const training = trainingsMap.get(assignment.trainingId);
+      if (training) {
+        if (!categoryStats[training.category]) {
+          categoryStats[training.category] = { total: 0, completed: 0 };
+        }
+        categoryStats[training.category]!.total++;
+        if (assignment.status === 'completed') {
+          categoryStats[training.category]!.completed++;
+        }
+      }
+    });
+
+    const categoryCompletionData = Object.entries(categoryStats).map(([name, stats]) => ({
+      name: name as TrainingCategory,
+      progress: stats.total > 0 ? (stats.completed / stats.total) * 100 : 0,
+    }));
+
 
     return {
-      filteredAssignments: relevantAssignments,
-      filteredTrainings: relevantTrainings,
       totalUsers: users.length,
+      overdueTrainings: Array.from(overdueTrainingsMap.values()),
+      categoryCompletionData
     };
-  }, [assignments, trainings, users, timeFilter]);
+  }, [assignments, trainings, users]);
   
   const scheduledTrainingsThisMonth = useMemo(() => {
     return trainings.filter(t => {
@@ -92,61 +122,21 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
       return getMonth(scheduled) === reportMonth && getYear(scheduled) === reportYear;
     }).sort((a, b) => new Date(a.scheduledDate!).getTime() - new Date(b.scheduledDate!).getTime());
   }, [trainings, reportMonth, reportYear]);
-
-  const categoryData = useMemo(() => {
-    const data: { [key in TrainingCategory]?: { count: number, duration: number } } = {};
-
-    filteredTrainings.forEach(training => {
-      if (!data[training.category]) {
-        data[training.category] = { count: 0, duration: 0 };
-      }
-      data[training.category]!.count += 1;
-      data[training.category]!.duration += training.duration || 0;
-    });
-    
-    return Object.entries(data).map(([name, values]) => ({ name: name as TrainingCategory, ...values }));
-  }, [filteredTrainings]);
   
-  const statusData = useMemo(() => {
-    const today = startOfDay(new Date());
-    let pending = 0;
-    let completed = 0;
-    let overdue = 0;
-
-    filteredAssignments.forEach(assignment => {
-      const training = trainings.find(t => t.id === assignment.trainingId);
-      if (assignment.status === 'completed') {
-        completed++;
-      } else {
-        pending++;
-        if (training?.scheduledDate && isBefore(new Date(training.scheduledDate), today)) {
-          overdue++;
-        }
-      }
-    });
-
-    return [
-      { name: 'Completado', value: completed, fill: '#00C49F' },
-      { name: 'Pendiente', value: pending, fill: '#FFBB28' },
-      { name: 'Atrasado', value: overdue, fill: '#FF8042' },
-    ];
-  }, [filteredAssignments, trainings]);
-
   const kpiData = useMemo(() => {
-    const trainedUserIds = new Set(filteredAssignments.filter(a => a.status === 'completed').map(a => a.userId));
-    const totalDurationMinutes = filteredTrainings.reduce((acc, t) => acc + (t.duration || 0), 0);
+    const trainedUserIds = new Set(assignments.filter(a => a.status === 'completed').map(a => a.userId));
+    const totalDurationMinutes = trainings.reduce((acc, t) => acc + (t.duration || 0), 0);
     
-    const overdueCount = statusData.find(s => s.name === 'Atrasado')?.value || 0;
-    const completedCount = statusData.find(s => s.name === 'Completado')?.value || 0;
+    const completedCount = assignments.filter(a => a.status === 'completed').length;
 
     return {
       totalUsersTrained: trainedUserIds.size,
       percentageUsersTrained: totalUsers > 0 ? (trainedUserIds.size / totalUsers) * 100 : 0,
       totalHours: totalDurationMinutes / 60,
-      overdueCount,
+      overdueCount: overdueTrainings.length,
       completedCount,
     };
-  }, [filteredAssignments, filteredTrainings, totalUsers, statusData]);
+  }, [assignments, trainings, totalUsers, overdueTrainings]);
 
   const csvData = useMemo(() => {
      if (!users.length || !trainings.length || !assignments.length) return [];
@@ -206,18 +196,6 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
                         Exportar CSV
                     </Button>
                 </CSVLink>
-                <Select value={timeFilter} onValueChange={setTimeFilter}>
-                    <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Filtrar por tiempo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Todo el tiempo</SelectItem>
-                        <SelectItem value="1">Último mes</SelectItem>
-                        <SelectItem value="3">Últimos 3 meses</SelectItem>
-                        <SelectItem value="6">Últimos 6 meses</SelectItem>
-                        <SelectItem value="12">Último año</SelectItem>
-                    </SelectContent>
-                </Select>
             </div>
         </CardHeader>
       </Card>
@@ -240,17 +218,17 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{kpiData.totalHours.toFixed(1)}</div>
-            <p className="text-xs text-muted-foreground">Total de horas en el período</p>
+            <p className="text-xs text-muted-foreground">Total de horas en el histórico</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Capacitaciones Completadas</CardTitle>
+            <CardTitle className="text-sm font-medium">Asignaciones Completadas</CardTitle>
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">+{kpiData.completedCount}</div>
-            <p className="text-xs text-muted-foreground">Total en el período</p>
+            <p className="text-xs text-muted-foreground">Total histórico</p>
           </CardContent>
         </Card>
          <Card>
@@ -265,12 +243,108 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-1">
+       <div className="grid gap-4 md:grid-cols-1">
+         <Card>
+          <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                  <AlertTriangle className="text-destructive" />
+                  Alerta: Capacitaciones Atrasadas
+              </CardTitle>
+              <CardDescription>
+                  Estas capacitaciones han superado su fecha programada y aún tienen participantes pendientes.
+              </CardDescription>
+          </CardHeader>
+          <CardContent>
+              {overdueTrainings.length > 0 ? (
+                  <Table>
+                      <TableHeader>
+                          <TableRow>
+                              <TableHead>Capacitación</TableHead>
+                              <TableHead>Responsable</TableHead>
+                              <TableHead>Fecha Programada</TableHead>
+                              <TableHead className="text-center">Participantes Pendientes</TableHead>
+                          </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                          {overdueTrainings.map(({ training, pendingCount }) => (
+                              <TableRow key={training.id} className="bg-destructive/10">
+                                  <TableCell className="font-medium">{training.title}</TableCell>
+                                  <TableCell>{training.trainerName}</TableCell>
+                                  <TableCell>{format(new Date(training.scheduledDate!), 'PPP', { locale: es })}</TableCell>
+                                  <TableCell className="text-center font-bold text-lg">{pendingCount}</TableCell>
+                              </TableRow>
+                          ))}
+                      </TableBody>
+                  </Table>
+              ) : (
+                  <div className="text-center py-8">
+                      <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
+                      <p className="mt-4 text-muted-foreground">¡Excelente! No hay capacitaciones atrasadas.</p>
+                  </div>
+              )}
+          </CardContent>
+        </Card>
+      </div>
+
+
+      <div className="grid gap-4 md:grid-cols-1 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Progreso por Categoría</CardTitle>
+             <CardDescription>
+                  Porcentaje de finalización para todas las asignaciones en cada categoría.
+              </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={categoryCompletionData} layout="vertical" margin={{ left: 50 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" domain={[0, 100]} unit="%" />
+                <YAxis type="category" dataKey="name" width={100} />
+                <Tooltip formatter={(value) => `${(value as number).toFixed(1)}% completado`} />
+                <Legend />
+                <Bar dataKey="progress" fill="#0088FE" name="Progreso" barSize={20} />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Distribución de Asignaciones</CardTitle>
+             <CardDescription>
+                  Estado general de todas las asignaciones (completadas vs. pendientes).
+              </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={350}>
+              <PieChart>
+                <Pie 
+                  data={[{name: 'Completadas', value: kpiData.completedCount}, {name: 'Pendientes', value: assignments.length - kpiData.completedCount}]} 
+                  dataKey="value" 
+                  nameKey="name" 
+                  cx="50%" 
+                  cy="50%" 
+                  outerRadius={120} 
+                  labelLine={false}
+                  label={renderCustomizedLabel}
+                >
+                  <Cell fill="#00C49F" />
+                  <Cell fill="#FFBB28" />
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+       <div className="grid gap-4 md:grid-cols-1">
         <Card>
             <CardHeader>
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between">
                     <div>
-                        <CardTitle>Capacitaciones Programadas</CardTitle>
+                        <CardTitle>Planificador Mensual de Capacitaciones</CardTitle>
                         <CardDescription>Eventos con fecha prevista para el período seleccionado.</CardDescription>
                     </div>
                     <div className="flex items-center gap-2 mt-4 md:mt-0">
@@ -325,45 +399,9 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
         </Card>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="lg:col-span-4">
-          <CardHeader>
-            <CardTitle>Capacitaciones y Duración por Categoría</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={categoryData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} interval={0} />
-                <YAxis yAxisId="left" orientation="left" stroke="#0088FE" label={{ value: 'Nº Cursos', angle: -90, position: 'insideLeft' }} />
-                <YAxis yAxisId="right" orientation="right" stroke="#00C49F" label={{ value: 'Horas', angle: -90, position: 'insideRight' }} />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend />
-                <Bar yAxisId="left" dataKey="count" fill="#0088FE" name="Nº Cursos" />
-                <Bar yAxisId="right" dataKey="duration" fill="#00C49F" name="Duración (mins)" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        <Card className="lg:col-span-3">
-          <CardHeader>
-            <CardTitle>Estado General de Asignaciones</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={350}>
-              <PieChart>
-                <Pie data={statusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} labelLine={false} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
-                  {statusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }
+
+
+    
