@@ -67,6 +67,7 @@ import { ScrollArea } from '../ui/scroll-area';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { Calendar } from '../ui/calendar';
 import { EditTrainingDialog } from './EditTrainingDialog';
 import { TrainerDashboardClient } from '../dashboard/TrainerDashboardClient';
@@ -745,7 +746,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                 <Card key={training.id} className="p-4" onClick={() => handleTrainingClick(training)}>
                                     <p className="font-bold">{training.title}</p>
                                     <p className="text-sm text-muted-foreground">Responsable: {training.trainerName}</p>
-                                    {training.scheduledDate && <p className="text-sm text-muted-foreground">Fecha: {format(new Date(training.scheduledDate), 'PPP')}</p>}
+                                    {training.scheduledDate && <p className="text-sm text-muted-foreground">Fecha: {format(new Date(training.scheduledDate), 'PPP', { locale: es })}</p>}
                                     <div className="flex flex-wrap gap-2 my-2">
                                         <Badge variant="outline">{training.category}</Badge>
                                         <Badge variant={training.urgency === 'high' ? 'destructive' : 'secondary'}>{urgencyText[training.urgency]}</Badge>
@@ -784,7 +785,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                             <TableCell className="font-medium">{training.title}</TableCell>
                                             <TableCell>{training.trainerName}</TableCell>
                                             <TableCell>
-                                                {training.scheduledDate ? format(new Date(training.scheduledDate), 'PPP') : 'N/A'}
+                                                {training.scheduledDate ? format(new Date(training.scheduledDate), 'PPP', { locale: es }) : 'N/A'}
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
@@ -875,7 +876,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                             )}
                                         >
                                             <CalendarIcon className="mr-2 h-4 w-4" />
-                                            {scheduledDate ? format(scheduledDate, "PPP") : <span>Elegir fecha</span>}
+                                            {scheduledDate ? format(scheduledDate, "PPP", { locale: es }) : <span>Elegir fecha</span>}
                                         </Button>
                                     </PopoverTrigger>
                                     <PopoverContent className="w-auto p-0">

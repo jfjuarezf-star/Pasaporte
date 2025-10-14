@@ -11,6 +11,7 @@ import type { PopulatedTrainingWithUsers } from '@/lib/types';
 import { Check, Loader2, BookUser, Clock, BookOpen } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 export function TrainingUsersDialog({
   training,
@@ -104,7 +105,7 @@ export function TrainingUsersDialog({
                              {completedDate && (
                                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                                     <Clock className="h-3 w-3" />
-                                    {format(new Date(completedDate), 'PPP')}
+                                    {format(new Date(completedDate), 'PPP', { locale: es })}
                                 </p>
                              )}
                         </div>

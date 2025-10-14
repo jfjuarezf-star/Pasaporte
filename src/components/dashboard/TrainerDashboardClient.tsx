@@ -12,6 +12,7 @@ import { Assignment, Training, User } from '@/lib/types';
 import { Check, Loader2, BookUser, Search } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 import { Input } from '../ui/input';
 
 type TrainingWithAssignmentsAndUsers = Training & {
@@ -132,7 +133,7 @@ export function TrainerDashboardClient({ initialTrainings }: TrainerDashboardCli
                                         <div className='text-left'>
                                             <h3 className="font-semibold text-lg">{training.title}</h3>
                                             <p className="text-sm text-muted-foreground">
-                                                {training.scheduledDate ? `Programada para: ${format(new Date(training.scheduledDate), 'PPP')}` : 'Sin fecha programada'}
+                                                {training.scheduledDate ? `Programada para: ${format(new Date(training.scheduledDate), 'PPP', { locale: es })}` : 'Sin fecha programada'}
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-4 mt-2 sm:mt-0">

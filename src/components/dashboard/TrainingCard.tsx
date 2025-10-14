@@ -11,6 +11,7 @@ import { Shield, Wrench, ClipboardList, Users, Icon, Clock, CheckCircle, Leaf, Z
 import { updateTrainingStatus } from "@/app/actions";
 import { useTransition } from "react";
 import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 const categoryIcons: Record<TrainingCategory, Icon> = {
   Seguridad: Shield,
@@ -105,7 +106,7 @@ export function TrainingCard({
                 <Calendar className="h-4 w-4 text-muted-foreground"/>
                 <span>
                     Fecha: <span className="font-medium">
-                        {training.scheduledDate ? format(new Date(training.scheduledDate), 'PPP') : 'A definir'}
+                        {training.scheduledDate ? format(new Date(training.scheduledDate), 'PPP', { locale: es }) : 'A definir'}
                     </span>
                 </span>
             </div>

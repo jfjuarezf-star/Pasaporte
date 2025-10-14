@@ -29,6 +29,7 @@ import { Training, TrainingCategory, User } from '@/lib/types';
 import { AlertCircle, CalendarIcon, Check, FilePlus2, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 const TRAINING_CATEGORIES: TrainingCategory[] = ['Seguridad', 'Calidad', 'DPO', 'TPM', 'Medio Ambiente', 'Mejora Enfocada', 'Obligatoria'];
 
@@ -133,7 +134,7 @@ export function EditTrainingDialog({
                             className={cn("w-full justify-start text-left font-normal", !scheduledDate && "text-muted-foreground")}
                         >
                             <CalendarIcon className="mr-2 h-4 w-4" />
-                            {scheduledDate ? format(scheduledDate, "PPP") : <span>Elegir fecha</span>}
+                            {scheduledDate ? format(scheduledDate, "PPP", { locale: es }) : <span>Elegir fecha</span>}
                         </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
