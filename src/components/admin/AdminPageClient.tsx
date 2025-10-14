@@ -647,7 +647,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                             </Alert>
                          )}
                         <div className="space-y-2">
-                            <Label htmlFor="name">Nombre Completo</Label>
+                            <Label htmlFor="name">Nombre de Usuario / Completo</Label>
                             <Input id="name" name="name" required />
                             {createUserState?.errors?.name && <p className="text-sm text-destructive">{createUserState.errors.name[0]}</p>}
                         </div>

@@ -106,7 +106,7 @@ export function EditUserDialog({
                 </Alert>
              )}
             <div className="space-y-2">
-                <Label htmlFor="name">Nombre Completo</Label>
+                <Label htmlFor="name">Nombre de Usuario / Completo</Label>
                 <Input id="name" name="name" required defaultValue={user.name} />
                 {state?.errors?.name && <p className="text-sm text-destructive">{state.errors.name[0]}</p>}
             </div>
