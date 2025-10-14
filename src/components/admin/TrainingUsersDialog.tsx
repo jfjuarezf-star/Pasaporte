@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { updateTrainingStatus } from '@/app/actions';
 import type { PopulatedTrainingWithUsers } from '@/lib/types';
-import { Check, Loader2, BookUser, Clock } from 'lucide-react';
+import { Check, Loader2, BookUser, Clock, BookOpen } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { format } from 'date-fns';
 
@@ -127,5 +127,3 @@ export function TrainingUsersDialog({
     </Dialog>
   );
 }
-
-    
