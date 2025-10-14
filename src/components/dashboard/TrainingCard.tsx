@@ -7,9 +7,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import type { PopulatedAssignment, TrainingCategory, TrainingUrgency } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Shield, Wrench, ClipboardList, Users, Icon, Clock, CheckCircle, Leaf, Zap, Award, BookOpen } from "lucide-react";
+import { Shield, Wrench, ClipboardList, Users, Icon, Clock, CheckCircle, Leaf, Zap, Award, BookOpen, User, Calendar } from "lucide-react";
 import { updateTrainingStatus } from "@/app/actions";
 import { useTransition } from "react";
+import { format } from "date-fns";
 
 const categoryIcons: Record<TrainingCategory, Icon> = {
   Seguridad: Shield,
@@ -84,7 +85,7 @@ export function TrainingCard({
           {training.description}
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex-grow">
+      <CardContent className="flex-grow space-y-3">
         <div className="flex flex-wrap gap-2">
           <Badge variant="outline">{training.category}</Badge>
           <Badge variant={urgencyVariant[training.urgency]}>{urgencyText[training.urgency]}</Badge>
@@ -94,6 +95,20 @@ export function TrainingCard({
                 {training.duration} min
             </Badge>
           )}
+        </div>
+         <div className="text-sm text-gray-600 space-y-2">
+            <div className="flex items-center gap-2">
+                <User className="h-4 w-4 text-muted-foreground"/>
+                <span>Responsable: <span className="font-medium">{training.trainerName}</span></span>
+            </div>
+            <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-muted-foreground"/>
+                <span>
+                    Fecha: <span className="font-medium">
+                        {training.scheduledDate ? format(new Date(training.scheduledDate), 'PPP') : 'A definir'}
+                    </span>
+                </span>
+            </div>
         </div>
       </CardContent>
       <CardFooter className="bg-black/5 py-3 px-6">
