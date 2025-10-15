@@ -238,12 +238,13 @@ function AssignTrainingDialog({
                                 "w-full justify-start text-left font-normal",
                                 !scheduledDate && "text-muted-foreground"
                                 )}
+                                onClick={(e) => e.stopPropagation()}
                             >
                                 <CalendarIcon className="mr-2 h-4 w-4" />
                                 {scheduledDate ? format(scheduledDate, "PPP", { locale: es }) : <span>Elegir fecha</span>}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0">
+                        <PopoverContent className="w-auto p-0" onClick={(e) => e.stopPropagation()}>
                             <Calendar
                                 mode="single"
                                 selected={scheduledDate}
