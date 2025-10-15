@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useMemo, useState } from 'react';
@@ -57,7 +58,6 @@ const YEARS = Array.from({ length: 10 }, (_, i) => getYear(new Date()) - 5 + i).
 
 
 export function ReportDashboard({ users, trainings, assignments }: ReportDashboardProps) {
-  const [timeFilter, setTimeFilter] = useState('all');
   const [reportMonth, setReportMonth] = useState(getMonth(new Date()));
   const [reportYear, setReportYear] = useState(getYear(new Date()));
 
@@ -306,7 +306,7 @@ export function ReportDashboard({ users, trainings, assignments }: ReportDashboa
              <CardDescription>
                   Estado general de todas las asignaciones (completadas vs. pendientes).
               </CardDescription>
-          </Header>
+          </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={350}>
               <PieChart>
