@@ -204,7 +204,7 @@ function AssignTrainingDialog({
           Asignar
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="sm:max-w-2xl" onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
           <DialogTitle>Asignar: {training.title}</DialogTitle>
           <DialogDescription>
@@ -238,13 +238,12 @@ function AssignTrainingDialog({
                                 "w-full justify-start text-left font-normal",
                                 !scheduledDate && "text-muted-foreground"
                                 )}
-                                onClick={(e) => e.stopPropagation()}
                             >
                                 <CalendarIcon className="mr-2 h-4 w-4" />
                                 {scheduledDate ? format(scheduledDate, "PPP", { locale: es }) : <span>Elegir fecha</span>}
                             </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" onClick={(e) => e.stopPropagation()}>
+                        <PopoverContent className="w-auto p-0">
                             <Calendar
                                 mode="single"
                                 selected={scheduledDate}
