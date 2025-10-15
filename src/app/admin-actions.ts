@@ -261,12 +261,12 @@ export async function promoteUser(userId: string) {
 }
 
 export async function deleteAssignment(assignmentId: string) {
-    try {
-        await deleteAssignmentData(assignmentId);
-        revalidatePath('/admin');
-        return { success: true, message: 'Asignación eliminada.' };
-    } catch (error) {
-        console.error('Failed to delete assignment:', error);
-        return { success: false, message: 'Error al eliminar la asignación.' };
-    }
+  try {
+      await deleteAssignmentData(assignmentId);
+      revalidatePath('/admin');
+      return { success: true, message: 'Asignación eliminada.' };
+  } catch (error) {
+      console.error('Failed to delete assignment:', error);
+      return { success: false, message: 'Error al eliminar la asignación.' };
+  }
 }

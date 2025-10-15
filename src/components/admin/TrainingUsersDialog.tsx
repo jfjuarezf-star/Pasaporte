@@ -7,7 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { updateTrainingStatus, deleteAssignment } from '@/app/actions';
+import { updateTrainingStatus } from '@/app/actions';
+import { deleteAssignment } from '@/app/admin-actions';
 import type { PopulatedTrainingWithUsers } from '@/lib/types';
 import { Check, Loader2, BookOpen, User, Clock, Trash2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -30,8 +31,10 @@ function DeleteAssignmentButton({ assignmentId, userName, onDeassign }: { assign
 
     const handleDelete = () => {
         startTransition(async () => {
-            await deleteAssignment(assignmentId);
-            onDeassign(assignmentId);
+            const result = await deleteAssignment(assignmentId);
+            if (result.success) {
+                onDeassign(assignmentId);
+            }
         });
     }
 
