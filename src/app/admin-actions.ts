@@ -16,6 +16,7 @@ import {
   findUserByUsername,
   assignTrainingToUser as assignTrainingToUserData,
   updateTraining as updateTrainingData,
+  deleteAssignment as deleteAssignmentData,
 } from '@/lib/data';
 import type { Training, UserCategory } from '@/lib/types';
 import { getCurrentUserId } from '@/lib/auth';
@@ -248,7 +249,6 @@ export async function deleteUser(userId: string) {
     }
 }
 
-
 export async function promoteUser(userId: string) {
     try {
         await promoteUserData(userId);
@@ -260,3 +260,13 @@ export async function promoteUser(userId: string) {
     }
 }
 
+export async function deleteAssignment(assignmentId: string) {
+    try {
+        await deleteAssignmentData(assignmentId);
+        revalidatePath('/admin');
+        return { success: true, message: 'Asignación eliminada.' };
+    } catch (error) {
+        console.error('Failed to delete assignment:', error);
+        return { success: false, message: 'Error al eliminar la asignación.' };
+    }
+}

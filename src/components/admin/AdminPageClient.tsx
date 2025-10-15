@@ -445,6 +445,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
 
   const [trainings, setTrainings] = useState(initialTrainings);
   const [assignments, setAssignments] = useState(allAssignments);
+  const [users, setUsers] = useState(initialUsers);
 
   const [selectedUserForDetails, setSelectedUserForDetails] = useState<User | null>(null);
   const [selectedUserForEdit, setSelectedUserForEdit] = useState<User | null>(null);
@@ -478,12 +479,12 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
   }, [allAssignments]);
 
   const filteredUsers = useMemo(() => {
-    return initialUsers.filter(user => 
+    return users.filter(user => 
         user.name.toLowerCase().includes(userSearch.toLowerCase()) ||
         (user.username && user.username.toLowerCase().includes(userSearch.toLowerCase())) ||
         (user.email && user.email.toLowerCase().includes(userSearch.toLowerCase()))
     );
-  }, [initialUsers, userSearch]);
+  }, [users, userSearch]);
 
   const filteredTrainings = useMemo(() => {
     return trainings.filter(training => {
@@ -510,6 +511,26 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
         assignments: t.assignments.map(a => a.id === assignmentId ? { ...a, status: isCompleted ? 'completed' : 'pending', completedDate: isCompleted ? new Date().toISOString() : null } : a)
     })));
   }
+
+  const handleAssignmentDeassign = (assignmentId: string) => {
+    const updatedAssignments = assignments.filter(a => a.id !== assignmentId);
+    setAssignments(updatedAssignments);
+
+    if (selectedTrainingForUsers) {
+        setSelectedTrainingForUsers(prev => {
+            if (!prev) return null;
+            return {
+                ...prev,
+                participants: prev.participants.filter(p => p.id !== assignmentId),
+            }
+        });
+    }
+
+    setTrainings(prev => prev.map(t => ({
+        ...t,
+        assignments: t.assignments.filter(a => a.id !== assignmentId)
+    })));
+  }
   
   useEffect(() => {
     if (createUserState?.success) {
@@ -530,6 +551,11 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
   useEffect(() => {
     setAssignments(allAssignments);
   }, [allAssignments]);
+  
+  useEffect(() => {
+    setUsers(initialUsers);
+  }, [initialUsers]);
+
 
   const userAssignments = (userId: string): PopulatedAssignment[] => {
     const assignmentsForUser = assignments.filter(a => a.userId === userId);
@@ -544,7 +570,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
   }
 
   const handleTrainingClick = (training: TrainingWithAssignments) => {
-    const usersMap = new Map(initialUsers.map(u => [u.id, u]));
+    const usersMap = new Map(users.map(u => [u.id, u]));
     const assignmentsForTraining = assignments.filter(a => a.trainingId === training.id);
     const populatedParticipants = assignmentsForTraining.map(assignment => ({
         ...assignment,
@@ -806,7 +832,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                         <Button variant="outline" size="sm" onClick={(e) => {e.stopPropagation(); setSelectedTrainingToEdit(training);}}>
                                             <Pencil className="mr-2 h-4 w-4" /> Editar
                                         </Button>
-                                        <AssignTrainingDialog training={training} users={initialUsers} onAssignmentsChange={handleAssignmentsChange} leadershipUsers={leadershipUsers} />
+                                        <AssignTrainingDialog training={training} users={users} onAssignmentsChange={handleAssignmentsChange} leadershipUsers={leadershipUsers} />
                                         <DeleteTrainingDialog trainingId={training.id} trainingTitle={training.title} />
                                     </div>
                                 </Card>
@@ -841,7 +867,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                                   <Button variant="outline" size="sm" onClick={(e) => {e.stopPropagation(); setSelectedTrainingToEdit(training);}}>
                                                       <Pencil className="mr-2 h-3 w-3"/>Editar
                                                   </Button>
-                                                  <AssignTrainingDialog training={training} users={initialUsers} onAssignmentsChange={handleAssignmentsChange} leadershipUsers={leadershipUsers} />
+                                                  <AssignTrainingDialog training={training} users={users} onAssignmentsChange={handleAssignmentsChange} leadershipUsers={leadershipUsers} />
                                                   <DeleteTrainingDialog trainingId={training.id} trainingTitle={training.title} />
                                                 </div>
                                             </TableCell>
@@ -954,7 +980,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
         </TabsContent>
        )}
        <TabsContent value="reports">
-        <ReportDashboard users={initialUsers} trainings={trainings} assignments={allAssignments} />
+        <ReportDashboard users={users} trainings={trainings} assignments={assignments} />
       </TabsContent>
       {canSeeDataExplorer && (
         <TabsContent value="data-explorer">
@@ -974,7 +1000,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                       <h3 className="text-lg font-semibold mb-2">Colección: 'users'</h3>
                       <ScrollArea className="h-72 w-full rounded-md border p-4 bg-muted/50">
                           <pre className="text-sm">
-                              {JSON.stringify(initialUsers, null, 2)}
+                              {JSON.stringify(users, null, 2)}
                           </pre>
                       </ScrollArea>
                   </div>
@@ -1044,10 +1070,9 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                 }
             }}
             onAssignmentStatusChange={handleAssignmentStatusChange}
+            onAssignmentDeassign={handleAssignmentDeassign}
         />
     )}
     </>
   );
 }
-
-    

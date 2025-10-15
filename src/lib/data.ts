@@ -2,6 +2,7 @@
 
 
 
+
 'use server';
 import 'server-only';
 import { getFirebaseAdmin } from '@/lib/firebase';
@@ -243,6 +244,10 @@ export const getTrainingsByTrainerName = async (trainerName: string): Promise<Tr
 
         const trainingIds = [...new Set(assignmentSnap.docs.map(doc => doc.data().trainingId))];
 
+        if (trainingIds.length === 0) {
+            return [];
+        }
+
         const trainingsRef = db.collection('trainings');
         const trainingsQuery = await trainingsRef.where(admin.firestore.FieldPath.documentId(), 'in', trainingIds).get();
         
@@ -356,16 +361,14 @@ export const assignTrainingToUser = async (trainingId: string, userId: string, s
     if (!db) throw new Error("Database not initialized for assignTrainingToUser.");
 
     const assignmentsRef = db.collection('assignments');
-    // An assignment is unique per user, training, trainer and date.
-    // A user could be assigned the same training twice by different trainers or on different dates.
+    // An assignment is unique per user, training.
+    // If a user is already assigned a training, we shouldn't re-assign.
     const q = assignmentsRef.where('userId', '==', userId)
-                            .where('trainingId', '==', trainingId)
-                            .where('trainerName', '==', trainerName)
-                            .where('scheduledDate', '==', scheduledDate);
+                            .where('trainingId', '==', trainingId);
     const existing = await q.get();
 
     if (!existing.empty) {
-      console.log(`Assignment already exists for user ${userId}, training ${trainingId}, trainer ${trainerName} and date ${scheduledDate}`);
+      console.log(`Assignment already exists for user ${userId} and training ${trainingId}. Skipping.`);
       return;
     }
     
@@ -386,8 +389,6 @@ export const assignTrainingToUser = async (trainingId: string, userId: string, s
 export const assignTrainingToUsers = async (trainingId: string, userIds: string[], scheduledDate?: string, trainerName?: string): Promise<void> => {
     const { db } = getFirebaseAdmin();
     if (!db) throw new Error("Database not initialized for assignTrainingToUsers.");
-    
-    const assignmentsRef = db.collection('assignments');
     
     // We can't query for existing assignments efficiently for a batch, 
     // so we'll rely on client-side logic to filter out already-assigned users for a given training.
@@ -476,3 +477,11 @@ export const getAllAssignments = async (): Promise<Assignment[]> => {
         return [];
     }
 }
+
+export const deleteAssignment = async (assignmentId: string): Promise<void> => {
+    const { db } = getFirebaseAdmin();
+    if (!db) throw new Error("Database not initialized for deleteAssignment.");
+
+    const assignmentRef = db.collection('assignments').doc(assignmentId);
+    await assignmentRef.delete();
+};

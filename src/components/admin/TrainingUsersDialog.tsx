@@ -7,23 +7,72 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { updateTrainingStatus } from '@/app/actions';
+import { updateTrainingStatus, deleteAssignment } from '@/app/actions';
 import type { PopulatedTrainingWithUsers } from '@/lib/types';
-import { Check, Loader2, BookUser, Clock, BookOpen, User } from 'lucide-react';
+import { Check, Loader2, BookOpen, User, Clock, Trash2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+  } from "@/components/ui/alert-dialog"
+
+function DeleteAssignmentButton({ assignmentId, userName, onDeassign }: { assignmentId: string; userName: string; onDeassign: (id: string) => void }) {
+    const [isPending, startTransition] = useTransition();
+
+    const handleDelete = () => {
+        startTransition(async () => {
+            await deleteAssignment(assignmentId);
+            onDeassign(assignmentId);
+        });
+    }
+
+    return (
+        <AlertDialog>
+            <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive h-8 w-8">
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Se desasignará esta capacitación a <strong>{userName}</strong>. Esta acción no se puede deshacer.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDelete} disabled={isPending} className="bg-destructive hover:bg-destructive/90">
+                         {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Sí, desasignar
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    );
+}
 
 export function TrainingUsersDialog({
   training,
   isOpen,
   onOpenChange,
-  onAssignmentStatusChange
+  onAssignmentStatusChange,
+  onAssignmentDeassign
 }: {
   training: PopulatedTrainingWithUsers;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   onAssignmentStatusChange: (assignmentId: string, isCompleted: boolean) => void;
+  onAssignmentDeassign: (assignmentId: string) => void;
 }) {
   const [isPending, startTransition] = useTransition();
 
@@ -74,14 +123,17 @@ export function TrainingUsersDialog({
                             </div>
                         </div>
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => handleMarkAsComplete(id)}
-                        disabled={isPending}
-                      >
-                        {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                        <span className="ml-2 hidden sm:inline">Marcar Completo</span>
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                            size="sm"
+                            onClick={() => handleMarkAsComplete(id)}
+                            disabled={isPending}
+                        >
+                            {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                            <span className="ml-2 hidden sm:inline">Marcar Completo</span>
+                        </Button>
+                        <DeleteAssignmentButton assignmentId={id} userName={user?.name || 'este usuario'} onDeassign={onAssignmentDeassign} />
+                      </div>
                     </div>
                   ))
                 ) : (
@@ -114,9 +166,12 @@ export function TrainingUsersDialog({
                              )}
                         </div>
                        </div>
-                       <Badge variant="secondary" className="bg-green-200 text-green-800 dark:bg-green-800 dark:text-green-100">
+                       <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="bg-green-200 text-green-800 dark:bg-green-800 dark:text-green-100">
                            <Check className="mr-1 h-3 w-3" /> Completado
-                       </Badge>
+                        </Badge>
+                        <DeleteAssignmentButton assignmentId={id} userName={user?.name || 'este usuario'} onDeassign={onAssignmentDeassign} />
+                       </div>
                     </div>
                   ))
                 ) : (
@@ -132,4 +187,3 @@ export function TrainingUsersDialog({
     </Dialog>
   );
 }
-
