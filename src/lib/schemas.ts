@@ -45,6 +45,7 @@ export const CreateTrainingSchema = z.object({
   category: z.enum(['Seguridad', 'Calidad', 'DPO', 'TPM', 'Medio Ambiente', 'Mejora Enfocada', 'Obligatoria'], { errorMap: () => ({ message: 'Debes seleccionar una categoría.' }) }),
   urgency: z.enum(['high', 'medium', 'low'], { errorMap: () => ({ message: 'Debes seleccionar una urgencia.' }) }),
   duration: z.coerce.number().min(1, { message: 'La duración debe ser al menos 1 minuto.' }),
+  validityDays: z.coerce.number().min(0, { message: 'La vigencia no puede ser negativa.' }).optional(),
 });
 
 export const ChangePasswordSchema = z

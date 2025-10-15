@@ -8,10 +8,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import type { PopulatedAssignment, TrainingCategory, TrainingUrgency } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { Shield, Wrench, ClipboardList, Users, Icon, Clock, CheckCircle, Leaf, Zap, Award, BookOpen, User, Calendar } from "lucide-react";
+import { Shield, Wrench, ClipboardList, Users, Icon, Clock, CheckCircle, Leaf, Zap, Award, BookOpen, User, Calendar, History } from "lucide-react";
 import { updateTrainingStatus } from "@/app/actions";
 import { useTransition } from "react";
-import { format } from "date-fns";
+import { format, addDays, isPast } from "date-fns";
 import { es } from "date-fns/locale";
 
 const categoryIcons: Record<TrainingCategory, Icon> = {
@@ -46,9 +46,11 @@ export function TrainingCard({
   onCompletionChange: (trainingId: string, isCompleted: boolean) => void;
 }) {
   const [isPending, startTransition] = useTransition();
-  const isCompleted = training.status === "completed";
+  const isEffectivelyCompleted = training.effectiveStatus === "completed";
   const CategoryIcon = categoryIcons[training.category] || Award; // Fallback to a generic icon
   const checkboxId = `complete-${training.assignmentId}`;
+
+  const isExpired = training.status === 'completed' && training.effectiveStatus === 'pending';
 
   const handleCheckedChange = (checked: boolean | "indeterminate") => {
     if (typeof checked === 'boolean') {
@@ -63,8 +65,9 @@ export function TrainingCard({
     <Card
       className={cn(
         "flex flex-col transition-all duration-300 ease-in-out hover:shadow-lg",
-        isCompleted ? "bg-black/10" : "bg-white/30",
+        isEffectivelyCompleted ? "bg-black/10" : "bg-white/30",
         isPending && "opacity-70",
+        isExpired && "border-amber-500 border-2",
         "shadow-lg border border-white/30"
       )}
     >
@@ -72,7 +75,7 @@ export function TrainingCard({
         <div className="flex justify-between items-start">
             <CardTitle className={cn(
                 "font-headline text-lg leading-tight font-semibold",
-                isCompleted && "line-through text-gray-500"
+                isEffectivelyCompleted && "line-through text-gray-500"
             )}>
                 {training.title}
             </CardTitle>
@@ -81,7 +84,7 @@ export function TrainingCard({
         <CardDescription
           className={cn(
             "pt-2 text-gray-700",
-            isCompleted && "line-through text-gray-500"
+            isEffectivelyCompleted && "line-through text-gray-500"
           )}
         >
           {training.description}
@@ -95,6 +98,12 @@ export function TrainingCard({
             <Badge variant="secondary" className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
                 {training.duration} min
+            </Badge>
+          )}
+          {isExpired && (
+            <Badge variant="destructive" className="flex items-center gap-1 bg-amber-500 text-white">
+                <History className="h-3 w-3" />
+                Vencida - Renovar
             </Badge>
           )}
         </div>
@@ -117,7 +126,7 @@ export function TrainingCard({
         <div className="flex items-center space-x-2">
             <Checkbox
               id={checkboxId}
-              checked={isCompleted}
+              checked={isEffectivelyCompleted}
               onCheckedChange={handleCheckedChange}
               disabled={isPending}
             />
@@ -132,4 +141,3 @@ export function TrainingCard({
     </Card>
   );
 }
-

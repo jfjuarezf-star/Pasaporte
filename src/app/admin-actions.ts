@@ -138,6 +138,7 @@ export async function createTraining(prevState: any, formData: FormData) {
         category: formData.get('category'),
         urgency: formData.get('urgency'),
         duration: formData.get('duration'),
+        validityDays: formData.get('validityDays') || undefined,
     });
 
     if (!validatedFields.success) {
@@ -154,6 +155,7 @@ export async function createTraining(prevState: any, formData: FormData) {
             category: validatedFields.data.category as Training['category'],
             urgency: validatedFields.data.urgency as Training['urgency'],
             duration: validatedFields.data.duration,
+            validityDays: validatedFields.data.validityDays,
         });
         revalidatePath('/admin');
         return { success: true, message: 'Capacitación creada exitosamente.', errors: {} };
@@ -173,6 +175,7 @@ export async function updateTraining(prevState: any, formData: FormData) {
         category: formData.get('category'),
         urgency: formData.get('urgency'),
         duration: formData.get('duration'),
+        validityDays: formData.get('validityDays') || undefined,
     });
 
     if (!validatedFields.success) {
@@ -189,6 +192,7 @@ export async function updateTraining(prevState: any, formData: FormData) {
             category: validatedFields.data.category as Training['category'],
             urgency: validatedFields.data.urgency as Training['urgency'],
             duration: validatedFields.data.duration,
+            validityDays: validatedFields.data.validityDays,
         });
         revalidatePath('/admin');
         return { success: true, message: 'Capacitación actualizada exitosamente.', errors: {} };

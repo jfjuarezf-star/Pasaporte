@@ -30,6 +30,7 @@ export type Assignment = {
 // This is the shape of data passed to the TrainingCard
 export type PopulatedAssignment = Training & Assignment & {
   assignmentId: string;
+  effectiveStatus: TrainingStatus;
 };
 
 
@@ -49,5 +50,7 @@ export type Training = {
   category: TrainingCategory;
   urgency: TrainingUrgency;
   duration?: number; // Duration in minutes
+  validityDays?: number; // Optional: how many days the training is valid for. If undefined, it never expires.
 };
+
 

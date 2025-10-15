@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useTransition } from 'react';
@@ -36,8 +37,8 @@ export function UserTrainingDetailsDialog({
     });
   };
 
-  const completedTrainings = assignments.filter(a => a.status === 'completed');
-  const pendingTrainings = assignments.filter(a => a.status === 'pending');
+  const completedTrainings = assignments.filter(a => a.effectiveStatus === 'completed');
+  const pendingTrainings = assignments.filter(a => a.effectiveStatus === 'pending');
 
   return (
     <Dialog open={true} onOpenChange={onOpenChange}>

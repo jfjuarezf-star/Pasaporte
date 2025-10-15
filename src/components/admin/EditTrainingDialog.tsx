@@ -100,10 +100,17 @@ export function EditTrainingDialog({
                 <Textarea id="description" name="description" required defaultValue={training.description} />
                 {state?.errors?.description && <p className="text-sm text-destructive">{state.errors.description[0]}</p>}
             </div>
-            <div className="space-y-2">
-                <Label htmlFor="duration">Duración (minutos)</Label>
-                <Input id="duration" name="duration" type="number" required defaultValue={training.duration} />
-                {state?.errors?.duration && <p className="text-sm text-destructive">{state.errors.duration[0]}</p>}
+            <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="duration">Duración (minutos)</Label>
+                    <Input id="duration" name="duration" type="number" required defaultValue={training.duration} />
+                    {state?.errors?.duration && <p className="text-sm text-destructive">{state.errors.duration[0]}</p>}
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="validityDays">Vigencia (días)</Label>
+                    <Input id="validityDays" name="validityDays" type="number" placeholder="Ej: 365" defaultValue={training.validityDays} />
+                    {state?.errors?.validityDays && <p className="text-sm text-destructive">{state.errors.validityDays[0]}</p>}
+                </div>
             </div>
             <div className="space-y-2">
                 <Label htmlFor="category">Categoría</Label>
@@ -134,4 +141,3 @@ export function EditTrainingDialog({
     </Dialog>
   );
 }
-

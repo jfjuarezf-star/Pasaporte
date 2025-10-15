@@ -3,12 +3,14 @@
 
 
 
+
 'use server';
 import 'server-only';
 import { getFirebaseAdmin } from '@/lib/firebase';
 import { User, Training, Assignment, TrainingStatus, PopulatedAssignment, UserCategory } from './types';
 import type { Firestore } from 'firebase-admin/firestore';
 import admin from 'firebase-admin';
+import { addDays, isPast } from 'date-fns';
 
 // Helper to convert Firestore doc to a specific type
 function docToData<T>(doc: FirebaseFirestore.DocumentSnapshot): T {
@@ -177,7 +179,7 @@ export const updateUserData = async (userId: string, data: Partial<Pick<User, 'n
 
 
     const userRef = db.collection('users').doc(userId);
-    await userRef.update(updateData);
+await userRef.update(updateData as { [key: string]: any });
 };
 
 
@@ -329,10 +331,23 @@ export const getTrainingsForUser = async (userId: string): Promise<PopulatedAssi
         return assignments.map(assignment => {
             const trainingDetails = trainingsMap.get(assignment.trainingId);
             if (!trainingDetails) return null;
+
+            let effectiveStatus: TrainingStatus = assignment.status;
+
+            // Check for expiration
+            if (assignment.status === 'completed' && trainingDetails.validityDays && assignment.completedDate) {
+                const completionDate = new Date(assignment.completedDate);
+                const expirationDate = addDays(completionDate, trainingDetails.validityDays);
+                if (isPast(expirationDate)) {
+                    effectiveStatus = 'pending'; // Treat as pending if expired, for renewal
+                }
+            }
+
             return {
                 ...trainingDetails,
                 ...assignment,
                 assignmentId: assignment.id,
+                effectiveStatus: effectiveStatus,
             };
         }).filter((a): a is PopulatedAssignment => a !== null);
     } catch (error) {
@@ -351,7 +366,8 @@ export const updateAssignmentStatus = async (assignmentId: string, status: Train
     if (status === 'completed') {
         updateData.completedDate = new Date().toISOString();
     } else {
-        updateData.completedDate = null;
+        // We don't nullify completedDate on purpose, to keep the history.
+        // A new completion will overwrite it.
     }
     await assignmentRef.update(updateData);
 };
@@ -368,8 +384,15 @@ export const assignTrainingToUser = async (trainingId: string, userId: string, s
     const existing = await q.get();
 
     if (!existing.empty) {
-      console.log(`Assignment already exists for user ${userId} and training ${trainingId}. Skipping.`);
-      return;
+        const existingDocRef = existing.docs[0].ref;
+        const updateData: any = {
+            status: 'pending', // Reset status for re-assignment
+        };
+         if (scheduledDate) updateData.scheduledDate = scheduledDate;
+         if (trainerName) updateData.trainerName = trainerName;
+        await existingDocRef.update(updateData);
+        console.log(`Assignment already exists for user ${userId} and training ${trainingId}. Updating and resetting status.`);
+        return;
     }
     
     const newAssignment: Omit<Assignment, 'id'> = {
@@ -390,24 +413,39 @@ export const assignTrainingToUsers = async (trainingId: string, userIds: string[
     const { db } = getFirebaseAdmin();
     if (!db) throw new Error("Database not initialized for assignTrainingToUsers.");
     
-    // We can't query for existing assignments efficiently for a batch, 
-    // so we'll rely on client-side logic to filter out already-assigned users for a given training.
-    // The client-side logic is not perfect but prevents most common duplicates.
-
     const batch = db.batch();
+    const assignmentsRef = db.collection('assignments');
+    
+    // Efficiently find all existing assignments for this training and users
+    const existingAssignmentsQuery = assignmentsRef.where('trainingId', '==', trainingId).where('userId', 'in', userIds);
+    const existingAssignmentsSnap = await existingAssignmentsQuery.get();
+    const existingUserIds = new Set(existingAssignmentsSnap.docs.map(doc => doc.data().userId));
+
     for (const userId of userIds) {
-      const newAssignmentRef = db.collection("assignments").doc();
-      const newAssignment: Omit<Assignment, 'id'> = {
-        userId,
-        trainingId,
-        status: 'pending',
-        assignedDate: new Date().toISOString(),
-        completedDate: null,
-      };
-      if (scheduledDate) newAssignment.scheduledDate = scheduledDate;
-      if (trainerName) newAssignment.trainerName = trainerName;
-      
-      batch.set(newAssignmentRef, newAssignment);
+        if (existingUserIds.has(userId)) {
+            // This user already has an assignment for this training, update it
+            const existingDoc = existingAssignmentsSnap.docs.find(doc => doc.data().userId === userId);
+            if (existingDoc) {
+                 const updateData: any = { status: 'pending' }; // Re-assigning means it's pending again
+                 if (scheduledDate) updateData.scheduledDate = scheduledDate;
+                 if (trainerName) updateData.trainerName = trainerName;
+                 batch.update(existingDoc.ref, updateData);
+            }
+        } else {
+            // This is a new assignment
+            const newAssignmentRef = assignmentsRef.doc();
+            const newAssignment: Omit<Assignment, 'id'> = {
+                userId,
+                trainingId,
+                status: 'pending',
+                assignedDate: new Date().toISOString(),
+                completedDate: null,
+            };
+            if (scheduledDate) newAssignment.scheduledDate = scheduledDate;
+            if (trainerName) newAssignment.trainerName = trainerName;
+            
+            batch.set(newAssignmentRef, newAssignment);
+        }
     }
 
     if (userIds.length > 0) {

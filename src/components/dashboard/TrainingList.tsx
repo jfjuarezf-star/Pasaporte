@@ -1,8 +1,9 @@
+
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
 import { useOptimistic } from 'react';
-import type { PopulatedAssignment, TrainingUrgency } from "@/lib/types";
+import type { PopulatedAssignment, TrainingUrgency, TrainingStatus } from "@/lib/types";
 import { TrainingCard } from "./TrainingCard";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,7 +17,9 @@ export function TrainingList({ initialTrainings }: { initialTrainings: Populated
     initialTrainings,
     (state, { assignmentId, newStatus }: { assignmentId: string; newStatus: boolean }) => {
       return state.map(t =>
-        t.assignmentId === assignmentId ? { ...t, status: newStatus ? "completed" : "pending" } : t
+        t.assignmentId === assignmentId 
+          ? { ...t, effectiveStatus: newStatus ? "completed" : "pending", status: newStatus ? "completed" : t.status } // also update original status on completion
+          : t
       );
     }
   );
@@ -35,13 +38,15 @@ export function TrainingList({ initialTrainings }: { initialTrainings: Populated
         return a.category.localeCompare(b.category);
       }
       if (sortBy === "status") {
-        return a.status.localeCompare(b.status);
+        // Sort by effective status (completed, pending, expired)
+        const statusOrder: Record<TrainingStatus, number> = { pending: 1, completed: 2 };
+        return statusOrder[a.effectiveStatus] - statusOrder[b.effectiveStatus];
       }
       return 0;
     });
   }, [optimisticTrainings, sortBy]);
 
-  const completedCount = useMemo(() => optimisticTrainings.filter((t) => t.status === "completed").length, [optimisticTrainings]);
+  const completedCount = useMemo(() => optimisticTrainings.filter((t) => t.effectiveStatus === "completed").length, [optimisticTrainings]);
   const totalCount = optimisticTrainings.length;
   const progressPercentage = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 

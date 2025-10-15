@@ -155,7 +155,8 @@ function AssignTrainingDialog({
 
   const handleAssign = () => {
     startTransition(async () => {
-      const userIdsToAssign = Array.from(selectedUserIds).filter(id => !training.assignments.some(a => a.userId === id));
+      // We no longer filter out existing users, as we want to allow re-assignment to reset their status.
+      const userIdsToAssign = Array.from(selectedUserIds);
       if (userIdsToAssign.length === 0) return;
       
       const result = await assignTrainingToUsers(training.id, userIdsToAssign, scheduledDate?.toISOString(), trainerName);
@@ -195,7 +196,7 @@ function AssignTrainingDialog({
     setSelectedUserIds(currentManualSelections);
   }
   
-  const totalSelectedCount = Array.from(selectedUserIds).filter(id => !training.assignments.some(a => a.userId === id)).length;
+  const totalSelectedCount = Array.from(selectedUserIds).length;
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -299,8 +300,7 @@ function AssignTrainingDialog({
                         >
                             <Checkbox
                             id={`user-${user.id}`}
-                            checked={isAssigned || isSelected}
-                            disabled={isAssigned}
+                            checked={isSelected}
                             onCheckedChange={(checked) => handleCheckboxChange(user.id, !!checked)}
                             />
                             <span>
@@ -309,7 +309,7 @@ function AssignTrainingDialog({
                         </Label>
                         {isAssigned && (
                             <Badge variant="secondary" className="text-xs">
-                            Asignado
+                            Ya asignado
                             </Badge>
                         )}
                         </div>
@@ -565,6 +565,7 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
             ...trainingDetails!,
             ...assignment,
             assignmentId: assignment.id,
+            effectiveStatus: assignment.status
         }
     }).filter(a => a.id); // Filter out assignments where training might have been deleted
   }
@@ -918,10 +919,17 @@ export function AdminPageClient({ initialUsers, initialTrainings, allAssignments
                                 />
                                 {createTrainingState?.errors?.description && <p className="text-sm text-destructive">{createTrainingState.errors.description[0]}</p>}
                             </div>
-                             <div className="space-y-2">
-                                <Label htmlFor="duration">Duración (minutos)</Label>
-                                <Input id="duration" name="duration" type="number" required />
-                                {createTrainingState?.errors?.duration && <p className="text-sm text-destructive">{createTrainingState.errors.duration[0]}</p>}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="duration">Duración (min)</Label>
+                                    <Input id="duration" name="duration" type="number" required />
+                                    {createTrainingState?.errors?.duration && <p className="text-sm text-destructive">{createTrainingState.errors.duration[0]}</p>}
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="validityDays">Vigencia (días)</Label>
+                                    <Input id="validityDays" name="validityDays" type="number" placeholder="Ej: 365" />
+                                    {createTrainingState?.errors?.validityDays && <p className="text-sm text-destructive">{createTrainingState.errors.validityDays[0]}</p>}
+                                </div>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="category">Categoría</Label>
